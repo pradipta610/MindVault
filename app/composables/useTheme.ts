@@ -1,4 +1,4 @@
-export type ThemeName = 'dark' | 'white' | 'cream'
+export type ThemeName = 'dark' | 'white' | 'cream' | 'matcha' | 'lilac'
 
 interface ThemeColors {
   bg: string
@@ -66,6 +66,38 @@ const themes: Record<ThemeName, ThemeColors> = {
     scrollThumbHover: '#c4b59c',
     selectBg: '#f3ede3',
   },
+  matcha: {
+    bg: '#f2f5f0',
+    bg2: '#e8ede4',
+    card: '#e8ede4',
+    border: 'rgba(74,124,89,0.12)',
+    text: '#1e2d22',
+    text2: '#4a6352',
+    muted: '#7a9982',
+    accent: '#4a7c59',
+    accentDim: '#3d6b4a',
+    accentGlow: 'rgba(74, 124, 89, 0.12)',
+    scrollTrack: '#e8ede4',
+    scrollThumb: '#c5d4c9',
+    scrollThumbHover: '#a8bfae',
+    selectBg: '#e8ede4',
+  },
+  lilac: {
+    bg: '#f5f3f8',
+    bg2: '#ede9f4',
+    card: '#ede9f4',
+    border: 'rgba(124,92,191,0.12)',
+    text: '#1e1a2d',
+    text2: '#5c4d7a',
+    muted: '#9982bb',
+    accent: '#7c5cbf',
+    accentDim: '#6b4dab',
+    accentGlow: 'rgba(124, 92, 191, 0.12)',
+    scrollTrack: '#ede9f4',
+    scrollThumb: '#d0c7e3',
+    scrollThumbHover: '#b8abd4',
+    selectBg: '#ede9f4',
+  },
 }
 
 const THEME_KEY = 'mindvault-theme'
@@ -115,6 +147,8 @@ export const useTheme = () => {
     dark: '#0f0f0d',
     white: '#ffffff',
     cream: '#faf7f2',
+    matcha: '#4a7c59',
+    lilac: '#7c5cbf',
   }
 
   return { current, setTheme, initTheme, themePreviewColors, themes }

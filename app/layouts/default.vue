@@ -11,10 +11,10 @@
         <div class="flex items-center gap-3">
           <div class="flex items-center gap-1.5 bg-vault-card border border-vault-border rounded-full px-2 py-1.5">
             <button
-              v-for="t in (['dark', 'white', 'cream'] as const)"
+              v-for="t in (['dark', 'white', 'cream', 'matcha', 'lilac'] as const)"
               :key="t"
               @click="setTheme(t)"
-              class="w-5 h-5 rounded-full border-2 transition-all"
+              class="w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full border-2 transition-all"
               :class="current === t ? 'scale-110 border-vault-accent' : 'border-transparent hover:scale-105'"
               :style="{ backgroundColor: themePreviewColors[t] }"
               :title="t.charAt(0).toUpperCase() + t.slice(1)"

@@ -1,28 +1,43 @@
 <template>
   <div
-    @click="$emit('click')"
-    class="bg-vault-card border border-vault-border rounded-xl overflow-hidden cursor-pointer hover:border-vault-accent/20 transition-all group relative"
+    class="bg-vault-card border border-vault-border rounded-xl overflow-hidden hover:border-vault-accent/20 transition-all group relative"
   >
-    <!-- Photo thumbnails -->
+    <!-- Photo thumbnails — accordion expand -->
     <div v-if="noteImages.length > 0" class="relative">
-      <div v-if="noteImages.length === 1" class="w-full">
-        <img :src="noteImages[0]" class="w-full h-40 object-cover" loading="lazy" />
-      </div>
-      <div v-else class="grid grid-cols-2 gap-0.5">
+      <!-- Expanded single image -->
+      <div v-if="expandedIndex !== null" @click.stop="expandedIndex = null" class="cursor-pointer">
         <img
-          v-for="(img, i) in noteImages.slice(0, 4)"
-          :key="i"
-          :src="img"
-          class="w-full h-24 object-cover"
+          :src="noteImages[expandedIndex]"
+          class="w-full object-contain max-h-[70vh] transition-all duration-300 ease-in-out bg-black/5"
           loading="lazy"
         />
+        <div class="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">
+          Klik untuk tutup
+        </div>
       </div>
-      <div v-if="noteImages.length > 4" class="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
-        +{{ noteImages.length - 4 }}
-      </div>
+
+      <!-- Collapsed thumbnails -->
+      <template v-else>
+        <div v-if="noteImages.length === 1" class="w-full cursor-pointer" @click.stop="expandedIndex = 0">
+          <img :src="noteImages[0]" class="w-full h-40 object-cover transition-all duration-300" loading="lazy" />
+        </div>
+        <div v-else class="grid grid-cols-2 gap-0.5">
+          <img
+            v-for="(img, i) in noteImages.slice(0, 4)"
+            :key="i"
+            :src="img"
+            class="w-full h-24 object-cover cursor-pointer transition-all duration-300 hover:brightness-90"
+            loading="lazy"
+            @click.stop="expandedIndex = i"
+          />
+        </div>
+        <div v-if="noteImages.length > 4" class="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+          +{{ noteImages.length - 4 }}
+        </div>
+      </template>
     </div>
 
-    <div class="p-4">
+    <div class="p-4 cursor-pointer" @click="$emit('click')">
       <div class="flex items-start justify-between gap-3 mb-2">
         <h3 class="font-medium text-vault-text text-sm leading-snug flex-1" v-html="highlight(note.title || truncateRaw(note.raw))" />
         <div class="flex items-center gap-2 shrink-0">
@@ -83,6 +98,8 @@
 const props = defineProps<{ note: any; searchQuery?: string }>()
 const emit = defineEmits(['click', 'delete', 'transfer'])
 const { getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
+
+const expandedIndex = ref<number | null>(null)
 
 const noteImages = computed(() => {
   if (!props.note.images || !Array.isArray(props.note.images)) return []
