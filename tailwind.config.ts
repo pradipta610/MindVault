@@ -16,6 +16,8 @@ export default <Partial<Config>>{
           accent: 'var(--v-accent)',
           'accent-dim': 'var(--v-accent-dim)',
           'accent-glow': 'var(--v-accent-glow)',
+          positive: 'var(--v-positive)',
+          negative: 'var(--v-negative)',
         }
       },
       fontFamily: {

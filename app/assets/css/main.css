@@ -17,6 +17,8 @@
   --v-scroll-thumb: #2a2a24;
   --v-scroll-thumb-hover: #3a3a34;
   --v-select-bg: #1a1a17;
+  --v-positive: #4ade80;
+  --v-negative: #f87171;
 }
 
 * {
