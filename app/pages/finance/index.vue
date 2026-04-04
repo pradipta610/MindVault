@@ -1,5 +1,5 @@
 <template>
-  <div class="px-4 py-6 max-w-4xl mx-auto w-full pb-16">
+  <div class="px-4 py-6 max-w-4xl mx-auto w-full pb-16" style="touch-action: manipulation" @touchend="handleTap">
 
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
@@ -412,4 +412,36 @@ const removeTransaction = async (id: string) => {
 }
 
 watch(user, (u) => { if (u) loadTransactions() }, { immediate: true })
+
+// ── Back Tap shortcut via ?add=1 ────────────────────────────────────────────
+const route = useRoute()
+const router = useRouter()
+
+watch(user, (u) => {
+  if (u && route.query.add === '1') {
+    router.replace({ query: {} })
+    nextTick(() => openAdd())
+  }
+}, { immediate: true })
+
+// ── Double tap to quick add ─────────────────────────────────────────────────
+let tapCount = 0
+let tapTimer: ReturnType<typeof setTimeout> | null = null
+
+const handleTap = (e: TouchEvent) => {
+  const target = e.target as HTMLElement
+  // Ignore taps on interactive elements
+  if (target.closest('button, a, input, textarea, select')) return
+
+  tapCount++
+  if (tapTimer) clearTimeout(tapTimer)
+  tapTimer = setTimeout(() => {
+    if (tapCount >= 2) openAdd()
+    tapCount = 0
+  }, 350)
+}
+
+onUnmounted(() => {
+  if (tapTimer) clearTimeout(tapTimer)
+})
 </script>
