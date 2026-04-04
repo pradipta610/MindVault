@@ -186,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import DOMPurify from 'isomorphic-dompurify'
+import DOMPurify from 'dompurify'
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
@@ -261,17 +261,18 @@ const filteredItems = computed(() => {
 
 const highlightText = (text: string) => {
   if (!text) return ''
-  const sanitized = DOMPurify.sanitize(text)
+  const sanitized = import.meta.client ? DOMPurify.sanitize(text) : text
   if (!searchQuery.value.trim()) return sanitized
   const escaped = searchQuery.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  // Replace only in text nodes, not inside HTML tags
   const highlighted = sanitized.replace(
     /(<[^>]+>|[^<]+)/g,
     (chunk) => chunk.startsWith('<')
       ? chunk
       : chunk.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="bg-vault-accent/30 text-vault-text rounded px-0.5">$1</mark>')
   )
-  return DOMPurify.sanitize(highlighted, { ADD_TAGS: ['mark'], ADD_ATTR: ['class'] })
+  return import.meta.client
+    ? DOMPurify.sanitize(highlighted, { ADD_TAGS: ['mark'], ADD_ATTR: ['class'] })
+    : highlighted
 }
 
 const openItemActions = (item: any) => {

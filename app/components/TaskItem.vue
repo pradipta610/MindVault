@@ -131,7 +131,7 @@
 </template>
 
 <script setup lang="ts">
-import DOMPurify from 'isomorphic-dompurify'
+import DOMPurify from 'dompurify'
 
 const props = defineProps<{ task: any; searchQuery?: string }>()
 const emit = defineEmits(['toggle', 'delete', 'toNote', 'click'])
@@ -175,9 +175,8 @@ const highlight = (text: string) => {
   const safe = escapeHtml(truncateText(text))
   if (!props.searchQuery?.trim()) return safe
   const escaped = props.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return DOMPurify.sanitize(
-    safe.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="bg-vault-accent/30 text-vault-text rounded px-0.5">$1</mark>')
-  )
+  const marked = safe.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="bg-vault-accent/30 text-vault-text rounded px-0.5">$1</mark>')
+  return import.meta.client ? DOMPurify.sanitize(marked) : marked
 }
 
 const taskActionItems = [

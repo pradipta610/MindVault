@@ -151,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import DOMPurify from 'isomorphic-dompurify'
+import DOMPurify from 'dompurify'
 
 const props = defineProps<{ note: any; searchQuery?: string }>()
 const emit = defineEmits(['click', 'delete', 'transfer'])
@@ -208,7 +208,8 @@ const highlight = (text: string, truncate = false) => {
   if (!props.searchQuery?.trim()) return safe
   const escaped = props.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(`(${escaped})`, 'gi')
-  return DOMPurify.sanitize(safe.replace(regex, '<mark class="bg-vault-accent/30 text-vault-text rounded px-0.5">$1</mark>'))
+  const marked = safe.replace(regex, '<mark class="bg-vault-accent/30 text-vault-text rounded px-0.5">$1</mark>')
+  return import.meta.client ? DOMPurify.sanitize(marked) : marked
 }
 
 const formatDate = (dateStr: string) => {
