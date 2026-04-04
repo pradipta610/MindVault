@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --v-bg: #0f0f0d;
+  --v-bg2: #141411;
+  --v-card: #1a1a17;
+  --v-border: #2a2a24;
+  --v-text: #e8e5dd;
+  --v-text2: #c5c2b8;
+  --v-muted: #8a8778;
+  --v-accent: #d4a853;
+  --v-accent-dim: #b8923f;
+  --v-accent-glow: rgba(212, 168, 83, 0.15);
+  --v-scroll-track: #1a1a17;
+  --v-scroll-thumb: #2a2a24;
+  --v-scroll-thumb-hover: #3a3a34;
+  --v-select-bg: #1a1a17;
+}
+
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.15s ease;
+}
+
+body {
+  background-color: var(--v-bg);
+  color: var(--v-text);
+  font-family: 'DM Sans', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--v-scroll-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--v-scroll-thumb);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--v-scroll-thumb-hover);
+}
+
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+select option {
+  background-color: var(--v-select-bg);
+  color: var(--v-text);
+}
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 0.5;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
