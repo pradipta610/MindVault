@@ -47,12 +47,7 @@ export const useNotifications = () => {
     try {
       if ('serviceWorker' in navigator) {
         const reg = await navigator.serviceWorker.ready
-        await reg.showNotification(title, {
-          body,
-          tag,
-          icon: '/icon-192.png',
-          badge: '/icon-192.png',
-        })
+        await reg.showNotification(title, { body, tag })
       } else {
         new Notification(title, { body, tag })
       }
