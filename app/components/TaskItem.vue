@@ -23,12 +23,11 @@
     </button>
 
     <div class="flex-1 min-w-0">
-      <p
-        class="text-sm leading-snug"
+      <div
+        class="prose-editor text-sm leading-snug"
         :class="task.done ? 'text-vault-muted line-through' : 'text-vault-text'"
-      >
-        {{ task.text }}
-      </p>
+        v-html="sanitizedText"
+      />
       <div class="flex items-center gap-2 mt-1">
         <span
           class="text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-0.5"
@@ -89,8 +88,12 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ task: any }>()
+import DOMPurify from 'dompurify'
+
+const props = defineProps<{ task: any }>()
 const emit = defineEmits(['toggle', 'delete', 'toNote'])
+
+const sanitizedText = computed(() => DOMPurify.sanitize(props.task.text || ''))
 const { getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
 
 const showActions = ref(false)

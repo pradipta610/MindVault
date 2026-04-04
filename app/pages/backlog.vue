@@ -93,7 +93,7 @@
           </div>
 
           <div class="flex-1 min-w-0">
-            <p class="text-sm text-vault-muted" :class="item._source === 'todo' ? 'line-through' : ''" v-html="highlightText(item._displayText)" />
+            <div class="prose-editor text-sm text-vault-muted" :class="item._source === 'todo' ? 'line-through' : ''" v-html="highlightText(item._displayText)" />
             <div class="flex items-center gap-2 mt-1">
               <span
                 class="text-[10px] px-2 py-0.5 rounded-full font-medium"
@@ -186,6 +186,7 @@
 </template>
 
 <script setup lang="ts">
+import DOMPurify from 'dompurify'
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
@@ -254,19 +255,24 @@ const filteredItems = computed(() => {
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    result = result.filter(i => (i._displayText || '').toLowerCase().includes(q))
+    result = result.filter(i => (i._displayText || '').replace(/<[^>]*>/g, '').toLowerCase().includes(q))
   }
   return result
 })
 
-const escapeHtml = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
 const highlightText = (text: string) => {
   if (!text) return ''
-  const safe = escapeHtml(text)
-  if (!searchQuery.value.trim()) return safe
+  const sanitized = DOMPurify.sanitize(text)
+  if (!searchQuery.value.trim()) return sanitized
   const escaped = searchQuery.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return safe.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="bg-vault-accent/30 text-vault-text rounded px-0.5">$1</mark>')
+  // Replace only in text nodes, not inside HTML tags
+  const highlighted = sanitized.replace(
+    /(<[^>]+>|[^<]+)/g,
+    (chunk) => chunk.startsWith('<')
+      ? chunk
+      : chunk.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="bg-vault-accent/30 text-vault-text rounded px-0.5">$1</mark>')
+  )
+  return DOMPurify.sanitize(highlighted, { ADD_TAGS: ['mark'], ADD_ATTR: ['class'] })
 }
 
 const openItemActions = (item: any) => {
