@@ -10,6 +10,13 @@ interface StoredReminder {
 const STORAGE_KEY = 'mv_reminders'
 const VAPID_PUBLIC_KEY = 'BChL9cbK8YyNG_LYr2FYrmQdMJoZ6rr55kR9N7Yid9GPm8AP7Q33LQIgfUJzGmeU9NMrSTl2oewERBso5fSmp-Y'
 
+const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
+}
+
 const getStored = (): Record<string, StoredReminder> => {
   if (typeof window === 'undefined') return {}
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }
@@ -32,22 +39,34 @@ export const useNotifications = () => {
 
   // Subscribe to Web Push and store in Supabase
   const subscribePush = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.warn('Push not supported')
+      return
+    }
+    if (!user.value?.id) {
+      console.warn('No user logged in, skipping push subscribe')
+      return
+    }
     try {
       const reg = await navigator.serviceWorker.ready
       const existing = await reg.pushManager.getSubscription()
       const sub = existing || await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: VAPID_PUBLIC_KEY,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       })
       const json = sub.toJSON()
-      if (!json.endpoint || !json.keys) return
-      await supabase.from('push_subscriptions').upsert({
-        user_id: user.value?.id,
+      if (!json.endpoint || !json.keys) {
+        console.warn('Push subscription has no endpoint/keys', json)
+        return
+      }
+      const { error } = await supabase.from('push_subscriptions').upsert({
+        user_id: user.value.id,
         endpoint: json.endpoint,
         p256dh: json.keys.p256dh,
         auth: json.keys.auth,
       }, { onConflict: 'user_id,endpoint' })
+      if (error) console.error('Failed to save push subscription:', error)
+      else console.log('Push subscription saved')
     } catch (e) {
       console.error('Push subscription failed:', e)
     }
