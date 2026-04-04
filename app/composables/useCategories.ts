@@ -81,11 +81,11 @@ export const useCategories = () => {
   const createCategory = async (name: string, color: string, icon: string) => {
     const userId = await getUserId()
     if (!userId) return null
-    const normalized = name.toLowerCase().trim()
-    if (allCategories.value.some(c => c.name === normalized)) return null
+    const trimmed = name.trim()
+    if (allCategories.value.some(c => c.name.toLowerCase() === trimmed.toLowerCase())) return null
     const { data, error } = await client
       .from('categories')
-      .insert({ user_id: userId, name: normalized, color, icon })
+      .insert({ user_id: userId, name: trimmed, color, icon })
       .select()
       .single()
     if (error) {
@@ -93,14 +93,15 @@ export const useCategories = () => {
       return null
     }
     if (data) dbCategories.value.push(data)
-    injectCategoryStyle(normalized, color)
+    injectCategoryStyle(trimmed, color)
     return data
   }
 
   const updateCategory = async (id: string, name: string, color: string, icon: string) => {
+    const trimmed = name.trim()
     const { data, error } = await client
       .from('categories')
-      .update({ name: name.toLowerCase().trim(), color, icon })
+      .update({ name: trimmed, color, icon })
       .eq('id', id)
       .select()
       .single()
@@ -113,7 +114,7 @@ export const useCategories = () => {
       if (idx !== -1) dbCategories.value[idx] = data
       else dbCategories.value.push(data)
     }
-    injectCategoryStyle(name.toLowerCase().trim(), color)
+    injectCategoryStyle(trimmed, color)
     return data
   }
 

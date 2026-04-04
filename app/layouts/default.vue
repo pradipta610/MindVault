@@ -9,17 +9,58 @@
           MindVault
         </NuxtLink>
         <div class="flex items-center gap-3">
-          <div class="flex items-center gap-1.5 bg-vault-card border border-vault-border rounded-full px-2 py-1.5">
+          <!-- Desktop theme switcher -->
+          <div class="hidden sm:flex items-center gap-1.5 bg-vault-card border border-vault-border rounded-full px-2 py-1.5">
             <button
-              v-for="t in (['dark', 'white', 'cream', 'matcha', 'lilac'] as const)"
-              :key="t"
-              @click="setTheme(t)"
-              class="w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full border-2 transition-all"
-              :class="current === t ? 'scale-110 border-vault-accent' : 'border-transparent hover:scale-105'"
-              :style="{ backgroundColor: themePreviewColors[t] }"
-              :title="t.charAt(0).toUpperCase() + t.slice(1)"
+              v-for="t in themeList"
+              :key="t.key"
+              @click="setTheme(t.key)"
+              class="w-5 h-5 rounded-full border-2 transition-all"
+              :class="current === t.key ? 'scale-110 border-vault-accent' : 'border-transparent hover:scale-105'"
+              :style="{ backgroundColor: themePreviewColors[t.key] }"
+              :title="t.label"
             />
           </div>
+
+          <!-- Mobile theme dropdown trigger -->
+          <div class="relative sm:hidden">
+            <button
+              @click="mobileThemeOpen = !mobileThemeOpen"
+              class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-vault-card transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-vault-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 21A3.75 3.75 0 0 1 3 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 0 0 3.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88a1.5 1.5 0 0 1 2.12 0l1.38 1.38a1.5 1.5 0 0 1 0 2.12l-2.88 2.88M10.5 8.197v.378" />
+              </svg>
+            </button>
+            <!-- Mobile theme dropdown -->
+            <div
+              v-if="mobileThemeOpen"
+              class="absolute right-0 top-12 w-56 bg-vault-card border border-vault-border rounded-xl shadow-lg overflow-hidden z-[60]"
+            >
+              <button
+                v-for="t in themeList"
+                :key="t.key"
+                @click="setTheme(t.key); mobileThemeOpen = false"
+                class="w-full flex items-center gap-3 px-4 min-h-[44px] hover:bg-vault-bg transition-colors"
+              >
+                <div
+                  class="w-6 h-6 rounded-full border-2 shrink-0"
+                  :class="current === t.key ? 'border-vault-accent' : 'border-vault-border'"
+                  :style="{ backgroundColor: themePreviewColors[t.key] }"
+                />
+                <span class="flex-1 text-sm text-vault-text text-left">{{ t.label }}</span>
+                <svg
+                  v-if="current === t.key"
+                  xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-vault-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+              </button>
+            </div>
+            <!-- Backdrop to close -->
+            <div v-if="mobileThemeOpen" class="fixed inset-0 z-[59]" @click="mobileThemeOpen = false" />
+          </div>
+
           <NuxtLink
             to="/settings"
             class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-vault-card transition-colors"
@@ -63,6 +104,16 @@
 const user = useSupabaseUser()
 const route = useRoute()
 const { current, setTheme, initTheme, themePreviewColors } = useTheme()
+
+const mobileThemeOpen = ref(false)
+
+const themeList = [
+  { key: 'dark' as const, label: 'Dark' },
+  { key: 'white' as const, label: 'White Elegant' },
+  { key: 'cream' as const, label: 'Cream Elegant' },
+  { key: 'matcha' as const, label: 'Matcha' },
+  { key: 'lilac' as const, label: 'Lilac' },
+]
 
 onMounted(() => {
   initTheme()

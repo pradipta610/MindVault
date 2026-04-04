@@ -24,6 +24,33 @@
     </div>
 
     <div class="space-y-6">
+      <!-- Theme Switcher -->
+      <div class="bg-vault-card border border-vault-border rounded-xl p-4">
+        <label class="block text-sm text-vault-text font-medium mb-3">Tema</label>
+        <div class="space-y-1">
+          <button
+            v-for="t in themeList"
+            :key="t.key"
+            @click="setTheme(t.key)"
+            class="w-full flex items-center gap-3 px-3 min-h-[44px] rounded-lg transition-colors"
+            :class="currentTheme === t.key ? 'bg-vault-accent/10' : 'hover:bg-vault-bg'"
+          >
+            <div
+              class="w-6 h-6 rounded-full border-2 shrink-0"
+              :class="currentTheme === t.key ? 'border-vault-accent' : 'border-vault-border'"
+              :style="{ backgroundColor: themePreviewColors[t.key] }"
+            />
+            <span class="flex-1 text-sm text-vault-text text-left">{{ t.label }}</span>
+            <svg
+              v-if="currentTheme === t.key"
+              xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-vault-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       <div class="bg-vault-card border border-vault-border rounded-xl p-4">
         <label class="block text-sm text-vault-text font-medium mb-1">Anthropic API Key</label>
         <p class="text-xs text-vault-muted mb-3">
@@ -188,7 +215,16 @@ const client = useSupabaseClient()
 const user = useSupabaseUser()
 const { anthropicKey, saveAnthropicKey } = useSettings()
 const { allCategories, hasCategories, fetchCategories, seedDefaults, createCategory, updateCategory, deleteCategory, injectAllStyles } = useCategories()
+const { current: currentTheme, setTheme, themePreviewColors } = useTheme()
 const { show: showToast } = useToast()
+
+const themeList = [
+  { key: 'dark' as const, label: 'Dark' },
+  { key: 'white' as const, label: 'White Elegant' },
+  { key: 'cream' as const, label: 'Cream Elegant' },
+  { key: 'matcha' as const, label: 'Matcha' },
+  { key: 'lilac' as const, label: 'Lilac' },
+]
 
 const apiKeyInput = ref(anthropicKey.value)
 const showKey = ref(false)

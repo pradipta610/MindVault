@@ -1,45 +1,77 @@
 <template>
   <div
-    class="bg-vault-card border border-vault-border rounded-xl overflow-hidden hover:border-vault-accent/20 transition-all group relative"
+    class="bg-vault-card border border-vault-border rounded-xl overflow-hidden hover:border-vault-accent/20 group relative"
+    :class="expandedIndex !== null ? 'shadow-lg' : 'shadow-sm'"
+    :style="{ transition: 'box-shadow 0.4s ease, background-color 0.3s ease, border-color 0.3s ease' }"
   >
     <!-- Photo thumbnails — accordion expand -->
     <div v-if="noteImages.length > 0" class="relative">
-      <!-- Expanded single image -->
-      <div v-if="expandedIndex !== null" @click.stop="expandedIndex = null" class="cursor-pointer">
-        <img
-          :src="noteImages[expandedIndex]"
-          class="w-full object-contain max-h-[70vh] transition-all duration-300 ease-in-out bg-black/5"
-          loading="lazy"
-        />
-        <div class="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">
-          Klik untuk tutup
-        </div>
-      </div>
-
-      <!-- Collapsed thumbnails -->
-      <template v-else>
-        <div v-if="noteImages.length === 1" class="w-full cursor-pointer" @click.stop="expandedIndex = 0">
-          <img :src="noteImages[0]" class="w-full h-40 object-cover transition-all duration-300" loading="lazy" />
-        </div>
-        <div v-else class="grid grid-cols-2 gap-0.5">
+      <div
+        class="overflow-hidden"
+        :style="{
+          maxHeight: expandedIndex !== null ? '2000px' : '200px',
+          transition: 'max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+        }"
+      >
+        <!-- Expanded single image -->
+        <div
+          v-if="expandedIndex !== null"
+          @click.stop="expandedIndex = null"
+          class="cursor-zoom-out"
+        >
           <img
-            v-for="(img, i) in noteImages.slice(0, 4)"
-            :key="i"
-            :src="img"
-            class="w-full h-24 object-cover cursor-pointer transition-all duration-300 hover:brightness-90"
+            :src="noteImages[expandedIndex]"
+            class="w-full object-contain max-h-[70vh] bg-black/5"
+            :style="{
+              opacity: 1,
+              borderRadius: '0px',
+              transition: 'opacity 0.4s ease, border-radius 0.4s ease',
+            }"
             loading="lazy"
-            @click.stop="expandedIndex = i"
           />
+          <div class="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">
+            Klik untuk tutup
+          </div>
         </div>
-        <div v-if="noteImages.length > 4" class="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
-          +{{ noteImages.length - 4 }}
-        </div>
-      </template>
+
+        <!-- Collapsed thumbnails -->
+        <template v-else>
+          <div v-if="noteImages.length === 1" class="w-full cursor-zoom-in" @click.stop="expandedIndex = 0">
+            <img
+              :src="noteImages[0]"
+              class="w-full h-40 object-cover"
+              :style="{
+                opacity: 0.95,
+                borderRadius: '0px',
+                transition: 'opacity 0.4s ease, border-radius 0.4s ease',
+              }"
+              loading="lazy"
+            />
+          </div>
+          <div v-else class="grid grid-cols-2 gap-0.5">
+            <img
+              v-for="(img, i) in noteImages.slice(0, 4)"
+              :key="i"
+              :src="img"
+              class="w-full h-24 object-cover cursor-zoom-in hover:brightness-90"
+              :style="{
+                opacity: 0.95,
+                transition: 'opacity 0.3s ease, filter 0.3s ease',
+              }"
+              loading="lazy"
+              @click.stop="expandedIndex = i"
+            />
+          </div>
+          <div v-if="noteImages.length > 4" class="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+            +{{ noteImages.length - 4 }}
+          </div>
+        </template>
+      </div>
     </div>
 
     <div class="p-4 cursor-pointer" @click="$emit('click')">
       <div class="flex items-start justify-between gap-3 mb-2">
-        <h3 class="font-medium text-vault-text text-sm leading-snug flex-1" v-html="highlight(note.title || truncateRaw(note.raw))" />
+        <h3 class="font-medium text-vault-text text-sm leading-snug flex-1" v-html="highlight(stripHtml(note.title || note.raw), true)" />
         <div class="flex items-center gap-2 shrink-0">
           <span
             class="text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-0.5"
@@ -68,7 +100,7 @@
         </div>
       </div>
 
-      <p class="text-vault-muted text-xs line-clamp-2 mb-3" v-html="highlight(note.raw)" />
+      <p class="text-vault-muted text-xs line-clamp-2 mb-3" v-html="highlight(stripHtml(note.raw))" />
 
       <div v-if="note.fokus" class="text-[11px] text-vault-accent/80 italic mb-2">
         {{ note.fokus }}
@@ -95,6 +127,8 @@
 </template>
 
 <script setup lang="ts">
+import DOMPurify from 'dompurify'
+
 const props = defineProps<{ note: any; searchQuery?: string }>()
 const emit = defineEmits(['click', 'delete', 'transfer'])
 const { getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
@@ -112,21 +146,27 @@ const confirmDelete = () => {
   }
 }
 
-const truncateRaw = (raw: string) => {
-  return raw.length > 60 ? raw.substring(0, 60) + '...' : raw
+const stripHtml = (html: string): string => {
+  if (!html) return ''
+  return html.replace(/<[^>]*>/g, '').trim()
+}
+
+const truncateText = (text: string, len = 60) => {
+  return text.length > len ? text.substring(0, len) + '...' : text
 }
 
 const escapeHtml = (str: string) => {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-const highlight = (text: string) => {
+const highlight = (text: string, truncate = false) => {
   if (!text) return ''
-  const safe = escapeHtml(text)
+  const plain = truncate ? truncateText(text) : text
+  const safe = escapeHtml(plain)
   if (!props.searchQuery?.trim()) return safe
   const escaped = props.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(`(${escaped})`, 'gi')
-  return safe.replace(regex, '<mark class="bg-vault-accent/30 text-vault-text rounded px-0.5">$1</mark>')
+  return DOMPurify.sanitize(safe.replace(regex, '<mark class="bg-vault-accent/30 text-vault-text rounded px-0.5">$1</mark>'))
 }
 
 const formatDate = (dateStr: string) => {
