@@ -191,7 +191,6 @@ definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
 const { backlogItems, backlogLoading, fetchBacklog, permanentDelete, restoreToNote, reactivateToTask, clearAll } = useBacklog()
-const { createNote } = useNotes()
 const { createTask } = useTasks()
 const { show: showToast } = useToast()
 const { fetchCategories, injectAllStyles, getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
@@ -229,7 +228,7 @@ const mergedItems = computed(() => {
         _key: 'backlog_' + b.id,
         _displayText: sd.text || '',
         _tag: sd.cat || null,
-        _images: [] as string[],
+        _images: sd.images || [] as string[],
         _sortTime: b.deleted_at || b.created_at,
       }
     } else {
@@ -293,17 +292,8 @@ const handleRestoreToNote = async (item: any) => {
   saving.value = true
   savingText.value = 'Mengembalikan...'
   try {
-    if (item._source === 'dump') {
-      await restoreToNote(item)
-      showToast('Note dikembalikan ke Dump!')
-    } else {
-      // Convert todo backlog item to a note
-      const text = item._displayText || ''
-      const tag = item._tag || null
-      await createNote({ raw: text, tag, title: text })
-      await permanentDelete(item.id)
-      showToast('Note dibuat dari task!')
-    }
+    await restoreToNote(item)
+    showToast(item._source === 'dump' ? 'Note dikembalikan ke Dump!' : 'Note dibuat dari task!')
   } catch (e) {
     showToast('Gagal mengembalikan item')
   } finally {

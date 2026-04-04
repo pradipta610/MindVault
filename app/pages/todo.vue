@@ -125,6 +125,8 @@
           v-for="task in filteredDayTasks"
           :key="task.id"
           :task="task"
+          :search-query="searchQuery"
+          @click="openTask(task)"
           @toggle="handleToggle(task.id, !task.done)"
           @delete="handleDeleteTask(task.id)"
           @to-note="handleToNote(task)"
@@ -144,6 +146,8 @@
               v-for="task in group.tasks"
               :key="task.id"
               :task="task"
+              :search-query="searchQuery"
+              @click="openTask(task)"
               @toggle="handleToggle(task.id, !task.done)"
               @delete="handleDeleteTask(task.id)"
               @to-note="handleToNote(task)"
@@ -182,8 +186,15 @@
     </div>
   </div>
 
-  <!-- Loading overlay -->
+  <!-- Task edit modal -->
   <Teleport to="body">
+    <TaskModal
+      v-if="showTaskModal && editingTask"
+      :task="editingTask"
+      @close="showTaskModal = false"
+      @save="handleTaskSave"
+    />
+
     <div v-if="saving" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div class="flex flex-col items-center gap-3">
         <div class="w-8 h-8 border-3 border-vault-accent border-t-transparent rounded-full animate-spin" />
@@ -197,8 +208,9 @@
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
-const { tasks, loading, fetchTasksForDate, fetchAllPending, rolloverTasks, createTask, completeTask, deleteTask } = useTasks()
-const { createNote } = useNotes()
+const { tasks, loading, fetchTasksForDate, fetchAllPending, rolloverTasks, createTask, updateTask, completeTask, deleteTask } = useTasks()
+const { createNote, updateNote } = useNotes()
+const { uploadImages, deleteImage } = useNoteImages()
 const { show: showToast } = useToast()
 const { categoryNames, hasCategories, fetchCategories, injectAllStyles, getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
 
@@ -213,6 +225,8 @@ const savingText = ref('Menyimpan...')
 const activeCat = ref('all')
 const activeDateFilter = ref('')
 const customDate = ref('')
+const showTaskModal = ref(false)
+const editingTask = ref<any>(null)
 
 const todayStr = computed(() => new Date().toISOString().split('T')[0])
 
@@ -255,7 +269,7 @@ const applyFilters = (list: any[]) => {
   let result = list
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    result = result.filter((t: any) => (t.text || '').toLowerCase().includes(q))
+    result = result.filter((t: any) => (t.text || '').replace(/<[^>]*>/g, '').toLowerCase().includes(q))
   }
   if (activeCat.value !== 'all') {
     result = result.filter((t: any) => t.cat === activeCat.value)
@@ -354,11 +368,49 @@ const handleDeleteTask = async (id: string) => {
   }
 }
 
+const openTask = (task: any) => {
+  editingTask.value = task
+  showTaskModal.value = true
+}
+
+const handleTaskSave = async (data: { text: string; cat: string; date: string; pendingFiles: File[]; existingImages: string[]; removedImages: string[] }) => {
+  if (!editingTask.value) return
+  saving.value = true
+  savingText.value = 'Menyimpan task...'
+  showTaskModal.value = false
+  const taskId = editingTask.value.id
+  try {
+    if (data.removedImages.length) {
+      await Promise.all(data.removedImages.map(url => deleteImage(taskId, url)))
+    }
+    let newUrls: string[] = []
+    if (data.pendingFiles.length) {
+      savingText.value = 'Mengupload foto...'
+      newUrls = await uploadImages(taskId, data.pendingFiles)
+    }
+    const finalImages = [...data.existingImages, ...newUrls]
+    await updateTask(taskId, {
+      text: data.text,
+      cat: data.cat || null,
+      date: data.date,
+      images: finalImages.length > 0 ? finalImages : null,
+    })
+    showToast('Task disimpan!')
+  } catch (e) {
+    showToast('Gagal menyimpan task')
+  } finally {
+    saving.value = false
+  }
+}
+
 const handleToNote = async (task: any) => {
   saving.value = true
   savingText.value = 'Membuat note...'
   try {
-    await createNote({ raw: task.text, tag: task.cat || null, title: task.text })
+    const note = await createNote({ raw: task.text, tag: task.cat || null })
+    if (note && task.images && task.images.length > 0) {
+      await updateNote(note.id, { images: task.images })
+    }
     showToast('Note dibuat!')
   } catch (e) {
     showToast('Gagal membuat note')

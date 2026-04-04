@@ -78,17 +78,19 @@ export const useTasks = () => {
     }
   }
 
-  const createTask = async (task: { text: string; cat: string; date: string }) => {
+  const createTask = async (task: { text: string; cat: string | null; date: string; images?: string[] | null }) => {
     const userId = await getUserId()
     if (!userId) return null
+    const insert: Record<string, any> = {
+      user_id: userId,
+      text: task.text,
+      cat: task.cat,
+      date: task.date,
+    }
+    if (task.images !== undefined) insert.images = task.images
     const { data, error } = await client
       .from('tasks')
-      .insert({
-        user_id: userId,
-        text: task.text,
-        cat: task.cat,
-        date: task.date,
-      })
+      .insert(insert)
       .select()
       .single()
     if (error) {
@@ -96,6 +98,22 @@ export const useTasks = () => {
       return null
     }
     if (data) tasks.value.push(data)
+    return data
+  }
+
+  const updateTask = async (id: string, updates: Record<string, any>) => {
+    const { data, error } = await client
+      .from('tasks')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) {
+      console.error('Failed to update task:', error)
+      throw new Error('Failed to update task')
+    }
+    const idx = tasks.value.findIndex((t: any) => t.id === id)
+    if (idx !== -1) tasks.value[idx] = { ...tasks.value[idx], ...data }
     return data
   }
 
@@ -141,6 +159,7 @@ export const useTasks = () => {
     fetchAllPending,
     rolloverTasks,
     createTask,
+    updateTask,
     completeTask,
     deleteTask,
   }

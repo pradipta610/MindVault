@@ -93,17 +93,14 @@
         @save="handleSave"
         @process="handleProcess"
       />
-      <TransferModal
+      <TaskModal
         v-if="showTransfer"
-        title="Jadikan Task"
-        confirm-label="Buat Task"
-        :initial-text="transferNote?.title || stripHtml(transferNote?.raw || '')"
+        :task="null"
+        :initial-text="transferNote?.raw || ''"
         :initial-cat="transferNote?.tag || ''"
-        :show-text="true"
-        :show-category="true"
-        :show-date="true"
+        :initial-images="transferNote?.images || []"
         @close="showTransfer = false"
-        @confirm="handleTransferConfirm"
+        @save="handleTransferConfirm"
       />
 
       <!-- Loading overlay -->
@@ -123,7 +120,7 @@ definePageMeta({ layout: 'default' })
 const user = useSupabaseUser()
 const { notes, loading, fetchNotes, createNote, updateNote } = useNotes()
 const { archiveDump } = useBacklog()
-const { createTask } = useTasks()
+const { createTask, updateTask } = useTasks()
 const { show: showToast } = useToast()
 const { uploadImages, deleteImage } = useNoteImages()
 const { categoryNames, hasCategories, fetchCategories, injectAllStyles, getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
@@ -171,21 +168,28 @@ const openNote = (note: any) => {
   showModal.value = true
 }
 
-const stripHtml = (html: string): string => {
-  if (!html) return ''
-  return html.replace(/<[^>]*>/g, '').trim()
-}
-
 const openTransfer = (note: any) => {
   transferNote.value = note
   showTransfer.value = true
 }
 
-const handleTransferConfirm = async (data: { text: string; cat: string; date: string }) => {
+const handleTransferConfirm = async (data: { text: string; cat: string; date: string; pendingFiles: File[]; existingImages: string[]; removedImages: string[] }) => {
   saving.value = true
   savingText.value = 'Membuat task...'
   try {
-    await createTask({ text: data.text, cat: data.cat || null, date: data.date })
+    const task = await createTask({
+      text: data.text,
+      cat: data.cat || null,
+      date: data.date,
+      images: data.existingImages.length > 0 ? data.existingImages : null,
+    })
+    if (task && data.pendingFiles.length > 0) {
+      savingText.value = 'Mengupload foto...'
+      const newUrls = await uploadImages(task.id, data.pendingFiles)
+      if (newUrls.length > 0) {
+        await updateTask(task.id, { images: [...data.existingImages, ...newUrls] })
+      }
+    }
     showTransfer.value = false
     showToast('Task dibuat!')
   } catch (e) {

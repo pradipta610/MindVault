@@ -92,6 +92,7 @@ export const useBacklog = () => {
       done_at: new Date().toISOString(),
       rolled_from: task.rolled_from,
       created_at: task.created_at,
+      images: task.images || [],
     }
 
     const { data, error } = await client
@@ -174,16 +175,20 @@ export const useBacklog = () => {
     if (!userId) return null
 
     const sd = item.source_data || {}
+    const isTodo = item.source_type === 'todo'
+
     const insert: Record<string, any> = {
       user_id: userId,
-      raw: sd.raw || '',
-      tag: sd.tag || null,
+      raw: isTodo ? (sd.text || '') : (sd.raw || ''),
+      tag: isTodo ? (sd.cat || null) : (sd.tag || null),
     }
-    if (sd.title) insert.title = sd.title
+    if (!isTodo) {
+      if (sd.title) insert.title = sd.title
+      if (sd.poin) insert.poin = sd.poin
+      if (sd.action) insert.action = sd.action
+      if (sd.fokus) insert.fokus = sd.fokus
+    }
     if (sd.images && sd.images.length > 0) insert.images = sd.images
-    if (sd.poin) insert.poin = sd.poin
-    if (sd.action) insert.action = sd.action
-    if (sd.fokus) insert.fokus = sd.fokus
 
     const { data, error } = await client
       .from('notes')
