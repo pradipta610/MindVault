@@ -24,11 +24,12 @@ export const useProjects = () => {
 
       const { data: tasks } = await client
         .from('project_tasks')
-        .select('project_id, done')
+        .select('project_id, done, parent_id')
         .in('project_id', projs.map((p: any) => p.id))
 
       projects.value = projs.map((p: any) => {
-        const pt = (tasks || []).filter((t: any) => t.project_id === p.id)
+        // Only count top-level tasks for progress
+        const pt = (tasks || []).filter((t: any) => t.project_id === p.id && !t.parent_id)
         return { ...p, totalTasks: pt.length, doneTasks: pt.filter((t: any) => t.done).length }
       })
     } catch (e) {
@@ -88,12 +89,14 @@ export const useProjects = () => {
     return data || []
   }
 
-  const createProjectTask = async (projectId: string, text: string) => {
+  const createProjectTask = async (projectId: string, text: string, parentId?: string) => {
     const userId = await getUserId()
     if (!userId) return null
+    const insert: Record<string, any> = { project_id: projectId, user_id: userId, text }
+    if (parentId) insert.parent_id = parentId
     const { data, error } = await client
       .from('project_tasks')
-      .insert({ project_id: projectId, user_id: userId, text })
+      .insert(insert)
       .select()
       .single()
     if (error) { console.error('Failed to create project task:', error); return null }
@@ -156,6 +159,46 @@ export const useProjects = () => {
     if (error) console.error('Failed to delete project note:', error)
   }
 
+  // ── Project Bugs ───────────────────────────────────────────────────────────
+
+  const fetchProjectBugs = async (projectId: string) => {
+    const { data, error } = await client
+      .from('project_bugs')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+    if (error) { console.error('Failed to fetch project bugs:', error); return [] }
+    return data || []
+  }
+
+  const createProjectBug = async (projectId: string, payload: { title: string; description: string; status: string }) => {
+    const userId = await getUserId()
+    if (!userId) return null
+    const { data, error } = await client
+      .from('project_bugs')
+      .insert({ project_id: projectId, user_id: userId, ...payload })
+      .select()
+      .single()
+    if (error) { console.error('Failed to create project bug:', error); return null }
+    return data
+  }
+
+  const updateProjectBug = async (bugId: string, payload: Partial<{ title: string; description: string; status: string }>) => {
+    const { data, error } = await client
+      .from('project_bugs')
+      .update(payload)
+      .eq('id', bugId)
+      .select()
+      .single()
+    if (error) { console.error('Failed to update project bug:', error); return null }
+    return data
+  }
+
+  const deleteProjectBug = async (bugId: string) => {
+    const { error } = await client.from('project_bugs').delete().eq('id', bugId)
+    if (error) console.error('Failed to delete project bug:', error)
+  }
+
   return {
     projects,
     loading,
@@ -172,5 +215,9 @@ export const useProjects = () => {
     createProjectNote,
     updateProjectNote,
     deleteProjectNote,
+    fetchProjectBugs,
+    createProjectBug,
+    updateProjectBug,
+    deleteProjectBug,
   }
 }

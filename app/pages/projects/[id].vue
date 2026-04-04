@@ -1,5 +1,5 @@
 <template>
-  <div class="px-4 py-6 max-w-4xl mx-auto w-full pb-12">
+  <div class="px-4 py-6 max-w-4xl mx-auto w-full pb-16">
 
     <!-- Loading project -->
     <div v-if="projectLoading" class="flex justify-center py-16">
@@ -18,11 +18,9 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
             </svg>
           </NuxtLink>
-
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-0.5">
               <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: project.color }" />
-              <!-- Editable name -->
               <input
                 v-if="editingName"
                 v-model="editNameValue"
@@ -36,14 +34,12 @@
                 v-else
                 class="font-serif text-2xl text-vault-text cursor-pointer hover:text-vault-accent/80 transition-colors truncate"
                 @click="startNameEdit"
+                title="Klik untuk edit nama"
               >
                 {{ project.name }}
               </h1>
             </div>
-            <span
-              v-if="project.status === 'done'"
-              class="text-[10px] text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full ml-5"
-            >
+            <span v-if="project.status === 'done'" class="text-[10px] text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full ml-5">
               Selesai
             </span>
           </div>
@@ -51,33 +47,19 @@
 
         <!-- Desktop actions -->
         <div class="hidden sm:flex items-center gap-2 shrink-0 ml-3">
-          <button
-            v-if="project.status === 'active'"
-            @click="markDone"
-            class="text-xs px-3 py-1.5 border border-green-400/30 text-green-400 rounded-lg hover:bg-green-400/10 transition-colors"
-          >
+          <button v-if="project.status === 'active'" @click="markDone" class="text-xs px-3 py-1.5 border border-green-400/30 text-green-400 rounded-lg hover:bg-green-400/10 transition-colors">
             Tandai Selesai
           </button>
-          <button
-            v-else
-            @click="markActive"
-            class="text-xs px-3 py-1.5 border border-vault-border text-vault-muted rounded-lg hover:bg-vault-card transition-colors"
-          >
+          <button v-else @click="markActive" class="text-xs px-3 py-1.5 border border-vault-border text-vault-muted rounded-lg hover:bg-vault-card transition-colors">
             Aktifkan Lagi
           </button>
-          <button
-            @click="confirmDelete"
-            class="text-xs px-3 py-1.5 border border-red-400/30 text-red-400 rounded-lg hover:bg-red-400/10 transition-colors"
-          >
+          <button @click="confirmDelete" class="text-xs px-3 py-1.5 border border-red-400/30 text-red-400 rounded-lg hover:bg-red-400/10 transition-colors">
             Hapus
           </button>
         </div>
 
-        <!-- Mobile action button -->
-        <button
-          @click="showMenu = true"
-          class="sm:hidden w-10 h-10 flex items-center justify-center text-vault-muted hover:text-vault-text transition-colors shrink-0"
-        >
+        <!-- Mobile -->
+        <button @click="showMenu = true" class="sm:hidden w-10 h-10 flex items-center justify-center text-vault-muted shrink-0">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
           </svg>
@@ -85,29 +67,23 @@
       </div>
 
       <!-- Progress Card -->
-      <div
-        v-if="tasks.length > 0"
-        class="bg-vault-card border border-vault-border rounded-xl px-4 py-3 mb-6"
-      >
+      <div v-if="topLevelTasks.length > 0" class="bg-vault-card border border-vault-border rounded-xl px-4 py-3 mb-6">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs text-vault-muted">Progress</span>
           <span class="text-xs font-semibold" :style="{ color: project.color }">
-            {{ doneTasks }}/{{ tasks.length }} tasks selesai
+            {{ doneTasks }}/{{ topLevelTasks.length }} tasks selesai
           </span>
         </div>
         <div class="h-2 bg-vault-border rounded-full overflow-hidden">
-          <div
-            class="h-full rounded-full transition-all duration-500"
-            :style="{ width: progressPct + '%', backgroundColor: project.color }"
-          />
+          <div class="h-full rounded-full transition-all duration-500" :style="{ width: progressPct + '%', backgroundColor: project.color }" />
         </div>
       </div>
 
-      <!-- ── Tasks Section ─────────────────────────────────────────────── -->
+      <!-- ── Tasks Section ───────────────────────────────────────────────── -->
       <div class="mb-8">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-xs font-semibold text-vault-muted uppercase tracking-wider">Tasks</h2>
-          <span class="text-[10px] text-vault-muted">{{ doneTasks }}/{{ tasks.length }}</span>
+          <span class="text-[10px] text-vault-muted">{{ doneTasks }}/{{ topLevelTasks.length }}</span>
         </div>
 
         <div v-if="tasksLoading" class="flex justify-center py-6">
@@ -115,49 +91,110 @@
         </div>
 
         <div v-else class="space-y-2 mb-3">
-          <div v-if="tasks.length === 0" class="text-sm text-vault-muted text-center py-4">
+          <div v-if="topLevelTasks.length === 0" class="text-sm text-vault-muted text-center py-4">
             Belum ada tasks. Tambah di bawah!
           </div>
 
-          <div
-            v-for="task in tasks"
-            :key="task.id"
-            class="flex items-center gap-3 bg-vault-card border border-vault-border rounded-xl px-4 py-3 group"
-            :class="{ 'opacity-60': task.done }"
-          >
-            <!-- Checkbox -->
-            <button
-              @click="toggleTask(task)"
-              class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors"
-              :class="task.done
-                ? 'bg-vault-accent border-vault-accent'
-                : 'border-vault-muted hover:border-vault-accent'"
-            >
-              <svg v-if="task.done" xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-vault-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-              </svg>
-            </button>
+          <!-- Task item with subtasks -->
+          <div v-for="task in topLevelTasks" :key="task.id" class="bg-vault-card border border-vault-border rounded-xl overflow-hidden" :class="{ 'opacity-60': task.done }">
+            <!-- Main task row -->
+            <div class="flex items-center gap-3 px-4 py-3 group">
+              <button
+                @click="toggleTask(task)"
+                class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors"
+                :class="task.done ? 'bg-vault-accent border-vault-accent' : 'border-vault-muted hover:border-vault-accent'"
+              >
+                <svg v-if="task.done" xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-vault-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+              </button>
 
-            <span
-              class="flex-1 text-sm text-vault-text"
-              :class="{ 'line-through text-vault-muted': task.done }"
-            >
-              {{ task.text }}
-            </span>
+              <span class="flex-1 text-sm text-vault-text" :class="{ 'line-through text-vault-muted': task.done }">
+                {{ task.text }}
+              </span>
 
-            <!-- Delete -->
-            <button
-              @click="removeTask(task.id)"
-              class="opacity-0 group-hover:opacity-100 text-vault-muted hover:text-red-400 transition-all w-8 h-8 flex items-center justify-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </button>
+              <!-- Subtask count badge -->
+              <button
+                @click="toggleExpand(task.id)"
+                class="flex items-center gap-1 shrink-0 transition-colors"
+                :class="subtaskCount(task.id) > 0 ? 'text-vault-accent' : 'text-vault-muted hover:text-vault-text'"
+              >
+                <span v-if="subtaskCount(task.id) > 0" class="text-[10px] font-medium">
+                  {{ doneSubtaskCount(task.id) }}/{{ subtaskCount(task.id) }}
+                </span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="w-4 h-4 transition-transform duration-200"
+                  :class="isExpanded(task.id) ? 'rotate-180' : ''"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+
+              <button
+                @click="removeTask(task.id)"
+                class="opacity-0 group-hover:opacity-100 text-vault-muted hover:text-red-400 transition-all w-7 h-7 flex items-center justify-center shrink-0"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Subtasks (expanded) -->
+            <div v-if="isExpanded(task.id)" class="border-t border-vault-border bg-vault-bg/40">
+              <!-- Existing subtasks -->
+              <div
+                v-for="sub in subtasksOf(task.id)"
+                :key="sub.id"
+                class="flex items-center gap-3 px-4 py-2.5 group/sub"
+                :class="{ 'opacity-60': sub.done }"
+              >
+                <div class="w-4 shrink-0" />
+                <button
+                  @click="toggleTask(sub)"
+                  class="w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors"
+                  :class="sub.done ? 'bg-vault-accent border-vault-accent' : 'border-vault-muted hover:border-vault-accent'"
+                >
+                  <svg v-if="sub.done" xmlns="http://www.w3.org/2000/svg" class="w-2.5 h-2.5 text-vault-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </button>
+                <span class="flex-1 text-xs text-vault-text" :class="{ 'line-through text-vault-muted': sub.done }">
+                  {{ sub.text }}
+                </span>
+                <button
+                  @click="removeTask(sub.id)"
+                  class="opacity-0 group-hover/sub:opacity-100 text-vault-muted hover:text-red-400 transition-all w-6 h-6 flex items-center justify-center shrink-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Add subtask input -->
+              <form @submit.prevent="addSubtask(task.id)" class="flex items-center gap-2 px-4 py-2.5 border-t border-vault-border/50">
+                <div class="w-4 shrink-0" />
+                <input
+                  v-model="newSubtaskTexts[task.id]"
+                  placeholder="Tambah subtask..."
+                  class="flex-1 bg-transparent text-xs text-vault-text placeholder:text-vault-muted/50 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  :disabled="!newSubtaskTexts[task.id]?.trim()"
+                  class="text-[10px] font-semibold text-vault-accent disabled:opacity-30 px-2 py-1"
+                >
+                  + Tambah
+                </button>
+              </form>
+            </div>
           </div>
         </div>
 
-        <!-- Quick add task -->
+        <!-- Quick add top-level task -->
         <form @submit.prevent="addTask" class="flex gap-2">
           <input
             v-model="newTaskText"
@@ -174,14 +211,59 @@
         </form>
       </div>
 
-      <!-- ── Notes Section ─────────────────────────────────────────────── -->
+      <!-- ── Bugs Section ────────────────────────────────────────────────── -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-semibold text-vault-muted uppercase tracking-wider">Bug Reports</h2>
+          <button @click="openBug(null)" class="text-xs text-vault-accent hover:text-vault-accent-dim transition-colors font-medium">
+            + Laporkan Bug
+          </button>
+        </div>
+
+        <div v-if="bugsLoading" class="flex justify-center py-6">
+          <div class="w-5 h-5 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+
+        <div v-else-if="bugs.length === 0" class="text-sm text-vault-muted text-center py-6">
+          Tidak ada bug yang dilaporkan.
+        </div>
+
+        <div v-else class="space-y-2">
+          <div
+            v-for="bug in bugs"
+            :key="bug.id"
+            @click="openBug(bug)"
+            class="bg-vault-card border border-vault-border rounded-xl px-4 py-3 cursor-pointer hover:border-vault-accent/20 group transition-colors"
+          >
+            <div class="flex items-start gap-3">
+              <span
+                class="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 mt-0.5"
+                :class="bugStatusClass(bug.status)"
+              >
+                {{ bugStatusLabel(bug.status) }}
+              </span>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-vault-text">{{ bug.title }}</p>
+                <p v-if="bug.description" class="text-xs text-vault-muted mt-0.5 line-clamp-2">{{ bug.description }}</p>
+              </div>
+              <button
+                @click.stop="removeBug(bug.id)"
+                class="opacity-0 group-hover:opacity-100 text-vault-muted hover:text-red-400 transition-all w-7 h-7 flex items-center justify-center shrink-0"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Notes Section ──────────────────────────────────────────────── -->
       <div>
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-xs font-semibold text-vault-muted uppercase tracking-wider">Notes</h2>
-          <button
-            @click="openNote(null)"
-            class="text-xs text-vault-accent hover:text-vault-accent-dim transition-colors font-medium"
-          >
+          <button @click="openNote(null)" class="text-xs text-vault-accent hover:text-vault-accent-dim transition-colors font-medium">
             + Tambah
           </button>
         </div>
@@ -204,10 +286,7 @@
             <p class="text-sm text-vault-text line-clamp-4 whitespace-pre-line leading-relaxed">{{ note.raw }}</p>
             <div class="flex items-center justify-between mt-3">
               <span class="text-[10px] text-vault-muted">{{ formatDate(note.created_at) }}</span>
-              <button
-                @click.stop="removeNote(note.id)"
-                class="opacity-0 group-hover:opacity-100 text-vault-muted hover:text-red-400 transition-all text-[10px]"
-              >
+              <button @click.stop="removeNote(note.id)" class="opacity-0 group-hover:opacity-100 text-vault-muted hover:text-red-400 transition-all text-[10px]">
                 Hapus
               </button>
             </div>
@@ -223,15 +302,69 @@
     </div>
 
     <!-- Mobile action sheet -->
-    <ActionSheet
-      v-if="showMenu"
-      :actions="menuActions"
-      @close="showMenu = false"
-      @select="handleMenu"
-    />
+    <ActionSheet v-if="showMenu" :actions="menuActions" @close="showMenu = false" @select="handleMenu" />
 
-    <!-- Note Modal -->
+    <!-- Modals -->
     <Teleport to="body">
+
+      <!-- Bug Modal -->
+      <div v-if="showBugModal" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="closeBugModal" />
+        <div class="relative bg-vault-card border border-vault-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg flex flex-col max-h-[85vh]">
+          <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b border-vault-border shrink-0">
+            <h2 class="font-serif text-lg text-vault-text">{{ editingBug ? 'Edit Bug' : 'Laporkan Bug' }}</h2>
+            <button @click="closeBugModal" class="text-vault-muted hover:text-vault-text transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <div>
+              <label class="block text-xs text-vault-muted mb-1.5">Judul Bug <span class="text-red-400">*</span></label>
+              <input
+                v-model="bugTitle"
+                ref="bugTitleInput"
+                placeholder="Contoh: Button submit tidak merespons"
+                class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-2.5 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-xs text-vault-muted mb-1.5">Deskripsi (opsional)</label>
+              <textarea
+                v-model="bugDescription"
+                placeholder="Langkah reproduksi, expected vs actual behavior..."
+                rows="4"
+                class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 resize-none transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-xs text-vault-muted mb-2">Status</label>
+              <div class="flex gap-2">
+                <button
+                  v-for="s in bugStatuses"
+                  :key="s.value"
+                  @click="bugStatus = s.value"
+                  class="flex-1 py-2 rounded-lg text-xs font-medium border transition-colors"
+                  :class="bugStatus === s.value ? s.activeClass : 'bg-vault-bg border-vault-border text-vault-muted hover:text-vault-text'"
+                >
+                  {{ s.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-3 px-6 pb-6 shrink-0">
+            <button @click="closeBugModal" class="flex-1 py-2.5 text-sm text-vault-muted border border-vault-border rounded-xl hover:bg-vault-bg transition-colors">
+              Batal
+            </button>
+            <button @click="saveBug" :disabled="!bugTitle.trim()" class="flex-1 py-2.5 text-sm font-semibold bg-vault-accent text-vault-bg rounded-xl hover:bg-vault-accent-dim transition-colors disabled:opacity-30">
+              Simpan
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Note Modal -->
       <div v-if="showNoteModal" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="closeNoteModal" />
         <div class="relative bg-vault-card border border-vault-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg flex flex-col max-h-[80vh]">
@@ -248,22 +381,15 @@
               v-model="noteText"
               ref="noteTextarea"
               placeholder="Tulis note untuk project ini..."
-              class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 resize-none transition-colors"
               rows="8"
+              class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 resize-none transition-colors"
             />
           </div>
           <div class="flex gap-3 px-6 pb-6 shrink-0">
-            <button
-              @click="closeNoteModal"
-              class="flex-1 py-2.5 text-sm text-vault-muted border border-vault-border rounded-xl hover:bg-vault-bg transition-colors"
-            >
+            <button @click="closeNoteModal" class="flex-1 py-2.5 text-sm text-vault-muted border border-vault-border rounded-xl hover:bg-vault-bg transition-colors">
               Batal
             </button>
-            <button
-              @click="saveNote"
-              :disabled="!noteText.trim() || noteSaving"
-              class="flex-1 py-2.5 text-sm font-semibold bg-vault-accent text-vault-bg rounded-xl hover:bg-vault-accent-dim transition-colors disabled:opacity-30"
-            >
+            <button @click="saveNote" :disabled="!noteText.trim()" class="flex-1 py-2.5 text-sm font-semibold bg-vault-accent text-vault-bg rounded-xl hover:bg-vault-accent-dim transition-colors disabled:opacity-30">
               Simpan
             </button>
           </div>
@@ -274,6 +400,7 @@
       <div v-if="saving" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm">
         <div class="w-8 h-8 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" />
       </div>
+
     </Teleport>
   </div>
 </template>
@@ -288,6 +415,7 @@ const {
   fetchProject, updateProject, deleteProject,
   fetchProjectTasks, createProjectTask, toggleProjectTask, deleteProjectTask,
   fetchProjectNotes, createProjectNote, updateProjectNote, deleteProjectNote,
+  fetchProjectBugs, createProjectBug, updateProjectBug, deleteProjectBug,
 } = useProjects()
 
 const projectId = route.params.id as string
@@ -297,7 +425,6 @@ const project = ref<any>(null)
 const projectLoading = ref(true)
 const saving = ref(false)
 
-// Inline name editing
 const editingName = ref(false)
 const editNameValue = ref('')
 const nameEditInput = ref<HTMLInputElement | null>(null)
@@ -307,20 +434,15 @@ const startNameEdit = () => {
   editingName.value = true
   nextTick(() => nameEditInput.value?.focus())
 }
-
 const saveNameEdit = async () => {
   if (!editNameValue.value.trim() || editNameValue.value === project.value?.name) {
-    editingName.value = false
-    return
+    editingName.value = false; return
   }
   await updateProject(projectId, { name: editNameValue.value.trim() })
   project.value = { ...project.value, name: editNameValue.value.trim() }
   editingName.value = false
 }
-
-const cancelNameEdit = () => {
-  editingName.value = false
-}
+const cancelNameEdit = () => { editingName.value = false }
 
 const markDone = async () => {
   saving.value = true
@@ -328,44 +450,34 @@ const markDone = async () => {
     await updateProject(projectId, { status: 'done' })
     project.value = { ...project.value, status: 'done' }
     showToast('Project ditandai selesai!')
-  } finally {
-    saving.value = false
-  }
+  } finally { saving.value = false }
 }
-
 const markActive = async () => {
   saving.value = true
   try {
     await updateProject(projectId, { status: 'active' })
     project.value = { ...project.value, status: 'active' }
     showToast('Project diaktifkan kembali!')
-  } finally {
-    saving.value = false
-  }
+  } finally { saving.value = false }
 }
-
 const confirmDelete = async () => {
-  if (!confirm(`Hapus project "${project.value?.name}"? Semua tasks dan notes akan ikut terhapus.`)) return
+  if (!confirm(`Hapus project "${project.value?.name}"? Semua data akan ikut terhapus.`)) return
   saving.value = true
   try {
     await deleteProject(projectId)
     showToast('Project dihapus')
     router.push('/projects')
-  } finally {
-    saving.value = false
-  }
+  } finally { saving.value = false }
 }
 
 // ── Mobile menu ────────────────────────────────────────────────────────────
 const showMenu = ref(false)
-
 const menuActions = computed(() => [
   project.value?.status === 'active'
     ? { id: 'done', label: 'Tandai Selesai', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>' }
     : { id: 'active', label: 'Aktifkan Lagi', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-vault-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>' },
   { id: 'delete', label: 'Hapus Project', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>', destructive: true },
 ])
-
 const handleMenu = (id: string) => {
   if (id === 'done') markDone()
   else if (id === 'active') markActive()
@@ -376,11 +488,20 @@ const handleMenu = (id: string) => {
 const tasks = ref<any[]>([])
 const tasksLoading = ref(false)
 const newTaskText = ref('')
+const expandedTaskIds = ref<Record<string, boolean>>({})
+const newSubtaskTexts = ref<Record<string, string>>({})
 
-const doneTasks = computed(() => tasks.value.filter(t => t.done).length)
+const topLevelTasks = computed(() => tasks.value.filter(t => !t.parent_id))
+const subtasksOf = (parentId: string) => tasks.value.filter(t => t.parent_id === parentId)
+const subtaskCount = (parentId: string) => tasks.value.filter(t => t.parent_id === parentId).length
+const doneSubtaskCount = (parentId: string) => tasks.value.filter(t => t.parent_id === parentId && t.done).length
+const isExpanded = (id: string) => !!expandedTaskIds.value[id]
+const toggleExpand = (id: string) => { expandedTaskIds.value[id] = !expandedTaskIds.value[id] }
+
+const doneTasks = computed(() => topLevelTasks.value.filter(t => t.done).length)
 const progressPct = computed(() => {
-  if (!tasks.value.length) return 0
-  return Math.round((doneTasks.value / tasks.value.length) * 100)
+  if (!topLevelTasks.value.length) return 0
+  return Math.round((doneTasks.value / topLevelTasks.value.length) * 100)
 })
 
 const loadTasks = async () => {
@@ -397,6 +518,14 @@ const addTask = async () => {
   if (task) tasks.value.push(task)
 }
 
+const addSubtask = async (parentId: string) => {
+  const text = newSubtaskTexts.value[parentId]?.trim()
+  if (!text) return
+  newSubtaskTexts.value[parentId] = ''
+  const sub = await createProjectTask(projectId, text, parentId)
+  if (sub) tasks.value.push(sub)
+}
+
 const toggleTask = async (task: any) => {
   const updated = await toggleProjectTask(task.id, !task.done)
   if (updated) {
@@ -406,8 +535,71 @@ const toggleTask = async (task: any) => {
 }
 
 const removeTask = async (taskId: string) => {
-  tasks.value = tasks.value.filter(t => t.id !== taskId)
+  tasks.value = tasks.value.filter(t => t.id !== taskId && t.parent_id !== taskId)
   await deleteProjectTask(taskId)
+}
+
+// ── Bugs ───────────────────────────────────────────────────────────────────
+const bugs = ref<any[]>([])
+const bugsLoading = ref(false)
+const showBugModal = ref(false)
+const editingBug = ref<any>(null)
+const bugTitle = ref('')
+const bugDescription = ref('')
+const bugStatus = ref<'open' | 'in_progress' | 'fixed'>('open')
+const bugTitleInput = ref<HTMLInputElement | null>(null)
+
+const bugStatuses = [
+  { value: 'open', label: 'Open', activeClass: 'bg-red-500/10 border-red-400/40 text-red-400' },
+  { value: 'in_progress', label: 'In Progress', activeClass: 'bg-amber-500/10 border-amber-400/40 text-amber-400' },
+  { value: 'fixed', label: 'Fixed', activeClass: 'bg-green-500/10 border-green-400/40 text-green-400' },
+]
+
+const bugStatusLabel = (s: string) => bugStatuses.find(b => b.value === s)?.label ?? s
+const bugStatusClass = (s: string) => {
+  if (s === 'open') return 'bg-red-500/10 text-red-400'
+  if (s === 'in_progress') return 'bg-amber-500/10 text-amber-400'
+  return 'bg-green-500/10 text-green-400'
+}
+
+const loadBugs = async () => {
+  bugsLoading.value = true
+  bugs.value = await fetchProjectBugs(projectId)
+  bugsLoading.value = false
+}
+
+const openBug = (bug: any | null) => {
+  editingBug.value = bug
+  bugTitle.value = bug?.title || ''
+  bugDescription.value = bug?.description || ''
+  bugStatus.value = bug?.status || 'open'
+  showBugModal.value = true
+  nextTick(() => bugTitleInput.value?.focus())
+}
+const closeBugModal = () => { showBugModal.value = false; editingBug.value = null }
+
+const saveBug = async () => {
+  if (!bugTitle.value.trim()) return
+  const payload = { title: bugTitle.value.trim(), description: bugDescription.value.trim(), status: bugStatus.value }
+  if (editingBug.value) {
+    const updated = await updateProjectBug(editingBug.value.id, payload)
+    if (updated) {
+      const idx = bugs.value.findIndex(b => b.id === editingBug.value.id)
+      if (idx !== -1) bugs.value[idx] = { ...bugs.value[idx], ...updated }
+    }
+    showToast('Bug diupdate!')
+  } else {
+    const created = await createProjectBug(projectId, payload)
+    if (created) bugs.value.unshift(created)
+    showToast('Bug dilaporkan!')
+  }
+  closeBugModal()
+}
+
+const removeBug = async (bugId: string) => {
+  bugs.value = bugs.value.filter(b => b.id !== bugId)
+  await deleteProjectBug(bugId)
+  showToast('Bug dihapus')
 }
 
 // ── Notes ──────────────────────────────────────────────────────────────────
@@ -416,7 +608,6 @@ const notesLoading = ref(false)
 const showNoteModal = ref(false)
 const editingNote = ref<any>(null)
 const noteText = ref('')
-const noteSaving = ref(false)
 const noteTextarea = ref<HTMLTextAreaElement | null>(null)
 
 const loadNotes = async () => {
@@ -431,33 +622,23 @@ const openNote = (note: any | null) => {
   showNoteModal.value = true
   nextTick(() => noteTextarea.value?.focus())
 }
-
-const closeNoteModal = () => {
-  showNoteModal.value = false
-  editingNote.value = null
-  noteText.value = ''
-}
+const closeNoteModal = () => { showNoteModal.value = false; editingNote.value = null; noteText.value = '' }
 
 const saveNote = async () => {
-  if (!noteText.value.trim() || noteSaving.value) return
-  noteSaving.value = true
-  try {
-    if (editingNote.value) {
-      const updated = await updateProjectNote(editingNote.value.id, noteText.value.trim())
-      if (updated) {
-        const idx = notes.value.findIndex(n => n.id === editingNote.value.id)
-        if (idx !== -1) notes.value[idx] = { ...notes.value[idx], raw: updated.raw }
-      }
-      showToast('Note disimpan!')
-    } else {
-      const created = await createProjectNote(projectId, noteText.value.trim())
-      if (created) notes.value.unshift(created)
-      showToast('Note ditambahkan!')
+  if (!noteText.value.trim()) return
+  if (editingNote.value) {
+    const updated = await updateProjectNote(editingNote.value.id, noteText.value.trim())
+    if (updated) {
+      const idx = notes.value.findIndex(n => n.id === editingNote.value.id)
+      if (idx !== -1) notes.value[idx] = { ...notes.value[idx], raw: updated.raw }
     }
-    closeNoteModal()
-  } finally {
-    noteSaving.value = false
+    showToast('Note disimpan!')
+  } else {
+    const created = await createProjectNote(projectId, noteText.value.trim())
+    if (created) notes.value.unshift(created)
+    showToast('Note ditambahkan!')
   }
+  closeNoteModal()
 }
 
 const removeNote = async (noteId: string) => {
@@ -478,6 +659,6 @@ onMounted(async () => {
   project.value = await fetchProject(projectId)
   projectLoading.value = false
   if (!project.value) return
-  await Promise.all([loadTasks(), loadNotes()])
+  await Promise.all([loadTasks(), loadBugs(), loadNotes()])
 })
 </script>
