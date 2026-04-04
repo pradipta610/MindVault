@@ -121,7 +121,8 @@
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
-const { notes, loading, fetchNotes, createNote, updateNote, archiveNote } = useNotes()
+const { notes, loading, fetchNotes, createNote, updateNote } = useNotes()
+const { archiveDump } = useBacklog()
 const { createTask } = useTasks()
 const { show: showToast } = useToast()
 const { uploadImages, deleteImage } = useNoteImages()
@@ -265,13 +266,17 @@ const handleProcess = async (data: { id: string; result: any }) => {
 const handleDelete = async (id: string) => {
   saving.value = true
   savingText.value = 'Menghapus...'
-  // Optimistic: remove from local state immediately
+  // Save note data BEFORE optimistic removal
+  const note = notes.value.find((n: any) => n.id === id)
+  if (!note) { saving.value = false; return }
   const backup = [...notes.value]
   notes.value = notes.value.filter((n: any) => n.id !== id)
   try {
-    await archiveNote(id)
+    // Sequential: insert backlog first, then delete from notes
+    await archiveDump(note)
     showToast('Note dipindah ke Backlog')
   } catch (e) {
+    // Revert optimistic update
     notes.value = backup
     showToast('Gagal menghapus note')
   } finally {
