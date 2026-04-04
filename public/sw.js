@@ -5,7 +5,7 @@ self.addEventListener('push', (event) => {
   let data = { title: 'MindVault', body: '' }
   try { data = event.data?.json() ?? data } catch {}
   event.waitUntil(
-    self.registration.showNotification(data.title, { body: data.body, icon: '/favicon.ico' })
+    self.registration.showNotification(data.title, { body: data.body })
   )
 })
 
