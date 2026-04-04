@@ -30,22 +30,15 @@ const saveStored = (r: Record<string, StoredReminder>) => {
 
 export const useNotifications = () => {
   const isSupported = typeof window !== 'undefined' && 'Notification' in window
-  const supabase = useSupabaseClient()
-  const user = useSupabaseUser()
 
   const permission = ref<NotificationPermission | 'unsupported'>(
     isSupported ? Notification.permission : 'unsupported'
   )
 
   // Subscribe to Web Push and store in Supabase
-  const subscribePush = async (userId?: string) => {
-    const uid = userId || user.value?.id
+  const subscribePush = async (userId: string, supabaseClient: any) => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       console.warn('Push not supported')
-      return
-    }
-    if (!uid) {
-      console.warn('No user logged in, skipping push subscribe')
       return
     }
     try {
@@ -60,8 +53,8 @@ export const useNotifications = () => {
         console.warn('Push subscription has no endpoint/keys', json)
         return
       }
-      const { error } = await supabase.from('push_subscriptions').upsert({
-        user_id: uid,
+      const { error } = await supabaseClient.from('push_subscriptions').upsert({
+        user_id: userId,
         endpoint: json.endpoint,
         p256dh: json.keys.p256dh,
         auth: json.keys.auth,
@@ -86,7 +79,6 @@ export const useNotifications = () => {
     }
     const result = await Notification.requestPermission()
     permission.value = result
-    if (result === 'granted') await subscribePush(user.value?.id)
     return result
   }
 
@@ -148,9 +140,6 @@ export const useNotifications = () => {
     if (!isSupported) return
     permission.value = Notification.permission
     if (Notification.permission !== 'granted') return
-
-    // Re-register push subscription in case it expired
-    await subscribePush()
 
     const stored = getStored()
     const now = Date.now()

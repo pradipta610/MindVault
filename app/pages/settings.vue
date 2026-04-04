@@ -274,7 +274,7 @@ const presetEmojis = [
 watch(user, async (u) => {
   if (u) {
     fetchCategories()
-    if (notifPermission.value === 'granted') await subscribePush(u.id)
+    if (notifPermission.value === 'granted') await subscribePush(u.id, client)
   }
 }, { immediate: true })
 
@@ -332,12 +332,16 @@ const handleDeleteCategory = async (id: string, name: string) => {
 
 const handleEnableNotif = async () => {
   const result = await requestPermission()
-  if (result === 'granted') showToast('Notifikasi aktif!')
-  else showToast('Notifikasi tidak diizinkan', 'error')
+  if (result === 'granted') {
+    if (user.value?.id) await subscribePush(user.value.id, client)
+    showToast('Notifikasi aktif!')
+  } else {
+    showToast('Notifikasi tidak diizinkan', 'error')
+  }
 }
 
 const handleTestNotif = async () => {
-  if (user.value?.id) await subscribePush(user.value.id)
+  if (user.value?.id) await subscribePush(user.value.id, client)
   await showNow('MindVault', 'Notifikasi berjalan dengan baik!')
   showToast('Test notifikasi dikirim')
 }
