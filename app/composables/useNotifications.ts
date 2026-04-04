@@ -177,5 +177,5 @@ export const useNotifications = () => {
     }
   }
 
-  return { isSupported, permission, requestPermission, schedule, cancel, init, showNow }
+  return { isSupported, permission, requestPermission, schedule, cancel, init, showNow, subscribePush }
 }

@@ -243,7 +243,7 @@ const { anthropicKey, saveAnthropicKey } = useSettings()
 const { allCategories, hasCategories, fetchCategories, seedDefaults, createCategory, updateCategory, deleteCategory, injectAllStyles } = useCategories()
 const { current: currentTheme, setTheme, themePreviewColors } = useTheme()
 const { show: showToast } = useToast()
-const { isSupported: notifSupported, permission: notifPermission, requestPermission, showNow } = useNotifications()
+const { isSupported: notifSupported, permission: notifPermission, requestPermission, showNow, subscribePush } = useNotifications()
 
 const themeList = [
   { key: 'dark' as const, label: 'Dark' },
@@ -271,8 +271,11 @@ const presetEmojis = [
   '💰', '🧠', '🎵', '📱', '🛠️', '❤️', '⭐', '🌍', '🏃', '🍕',
 ]
 
-watch(user, (u) => {
-  if (u) fetchCategories()
+watch(user, async (u) => {
+  if (u) {
+    fetchCategories()
+    if (notifPermission.value === 'granted') await subscribePush()
+  }
 }, { immediate: true })
 
 const handleSaveKey = () => {
@@ -334,6 +337,7 @@ const handleEnableNotif = async () => {
 }
 
 const handleTestNotif = async () => {
+  await subscribePush()
   await showNow('MindVault', 'Notifikasi berjalan dengan baik!')
   showToast('Test notifikasi dikirim')
 }
