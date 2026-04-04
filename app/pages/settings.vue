@@ -275,9 +275,11 @@ watch(user, (u) => {
   if (u) fetchCategories()
 }, { immediate: true })
 
-// Subscribe to push after auth is fully ready (not on immediate tick)
+// Subscribe to push only after session is fully ready
 watch(user, async (u) => {
-  if (u && notifPermission.value === 'granted') await subscribePush(u.id, client)
+  if (!u || notifPermission.value !== 'granted') return
+  const { data: { session } } = await client.auth.getSession()
+  if (session) await subscribePush(u.id, client)
 })
 
 const handleSaveKey = () => {

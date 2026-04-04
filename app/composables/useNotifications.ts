@@ -42,6 +42,8 @@ export const useNotifications = () => {
       return
     }
     try {
+      const { data: { session } } = await supabaseClient.auth.getSession()
+      console.log('subscribePush session uid:', session?.user?.id, 'passed userId:', userId)
       const reg = await navigator.serviceWorker.ready
       const existing = await reg.pushManager.getSubscription()
       const sub = existing || await reg.pushManager.subscribe({
