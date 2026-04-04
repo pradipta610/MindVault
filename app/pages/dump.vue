@@ -177,13 +177,11 @@ const handleTransferConfirm = async (data: { text: string; cat: string; date: st
   saving.value = true
   savingText.value = 'Membuat task...'
   try {
-    const task = await createTask({
-      text: data.text,
-      cat: data.cat || null,
-      date: data.date,
-      images: data.existingImages.length > 0 ? data.existingImages : null,
-    })
-    if (task && data.pendingFiles.length > 0) {
+    const taskPayload: any = { text: data.text, cat: data.cat || null, date: data.date }
+    if (data.existingImages.length > 0) taskPayload.images = data.existingImages
+    const task = await createTask(taskPayload)
+    if (!task) throw new Error('Failed to create task')
+    if (data.pendingFiles.length > 0) {
       savingText.value = 'Mengupload foto...'
       const newUrls = await uploadImages(task.id, data.pendingFiles)
       if (newUrls.length > 0) {

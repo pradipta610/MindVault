@@ -389,12 +389,13 @@ const handleTaskSave = async (data: { text: string; cat: string; date: string; p
       newUrls = await uploadImages(taskId, data.pendingFiles)
     }
     const finalImages = [...data.existingImages, ...newUrls]
-    await updateTask(taskId, {
+    const updates: Record<string, any> = {
       text: data.text,
       cat: data.cat || null,
       date: data.date,
-      images: finalImages.length > 0 ? finalImages : null,
-    })
+    }
+    if (finalImages.length > 0) updates.images = finalImages
+    await updateTask(taskId, updates)
     showToast('Task disimpan!')
   } catch (e) {
     showToast('Gagal menyimpan task')

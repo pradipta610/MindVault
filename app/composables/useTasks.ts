@@ -87,7 +87,7 @@ export const useTasks = () => {
       cat: task.cat,
       date: task.date,
     }
-    if (task.images !== undefined) insert.images = task.images
+    if (task.images && task.images.length > 0) insert.images = task.images
     const { data, error } = await client
       .from('tasks')
       .insert(insert)
