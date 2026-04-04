@@ -43,7 +43,9 @@ export const useNotifications = () => {
     }
     try {
       const { data: { session } } = await supabaseClient.auth.getSession()
-      console.log('subscribePush session uid:', session?.user?.id, 'passed userId:', userId)
+      const uid = userId || session?.user?.id
+      console.log('subscribePush uid:', uid)
+      if (!uid) { console.warn('No uid available'); return }
       const reg = await navigator.serviceWorker.ready
       const existing = await reg.pushManager.getSubscription()
       const sub = existing || await reg.pushManager.subscribe({
@@ -56,7 +58,7 @@ export const useNotifications = () => {
         return
       }
       const { error } = await supabaseClient.from('push_subscriptions').upsert({
-        user_id: userId,
+        user_id: uid,
         endpoint: json.endpoint,
         p256dh: json.keys.p256dh,
         auth: json.keys.auth,
