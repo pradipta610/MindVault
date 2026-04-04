@@ -4,7 +4,10 @@
       "Bash(npx web-push:*)",
       "Bash(supabase --version)",
       "Bash(npm list:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
