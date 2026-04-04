@@ -271,12 +271,14 @@ const presetEmojis = [
   '💰', '🧠', '🎵', '📱', '🛠️', '❤️', '⭐', '🌍', '🏃', '🍕',
 ]
 
-watch(user, async (u) => {
-  if (u) {
-    fetchCategories()
-    if (notifPermission.value === 'granted') await subscribePush(u.id, client)
-  }
+watch(user, (u) => {
+  if (u) fetchCategories()
 }, { immediate: true })
+
+// Subscribe to push after auth is fully ready (not on immediate tick)
+watch(user, async (u) => {
+  if (u && notifPermission.value === 'granted') await subscribePush(u.id, client)
+})
 
 const handleSaveKey = () => {
   saveAnthropicKey(apiKeyInput.value)
