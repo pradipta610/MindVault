@@ -339,11 +339,13 @@ const handleToggle = async (id: string, done: boolean) => {
 const handleDeleteTask = async (id: string) => {
   saving.value = true
   savingText.value = 'Menghapus...'
+  const task = tasks.value.find((t: any) => t.id === id)
+  if (!task) { saving.value = false; return }
   const backup = [...tasks.value]
   tasks.value = tasks.value.filter((t: any) => t.id !== id)
   try {
-    await deleteTask(id)
-    showToast('Task dihapus')
+    await completeTask({ ...task })
+    showToast('Task dihapus ke Backlog')
   } catch (e) {
     tasks.value = backup
     showToast('Gagal menghapus task')

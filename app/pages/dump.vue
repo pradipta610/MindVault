@@ -97,7 +97,7 @@
         v-if="showTransfer"
         title="Jadikan Task"
         confirm-label="Buat Task"
-        :initial-text="transferNote?.title || transferNote?.raw || ''"
+        :initial-text="transferNote?.title || stripHtml(transferNote?.raw || '')"
         :initial-cat="transferNote?.tag || ''"
         :show-text="true"
         :show-category="true"
@@ -169,6 +169,11 @@ const openNote = (note: any) => {
   form.raw = note.raw
   form.tag = note.tag
   showModal.value = true
+}
+
+const stripHtml = (html: string): string => {
+  if (!html) return ''
+  return html.replace(/<[^>]*>/g, '').trim()
 }
 
 const openTransfer = (note: any) => {
