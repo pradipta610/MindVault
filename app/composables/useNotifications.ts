@@ -38,12 +38,13 @@ export const useNotifications = () => {
   )
 
   // Subscribe to Web Push and store in Supabase
-  const subscribePush = async () => {
+  const subscribePush = async (userId?: string) => {
+    const uid = userId || user.value?.id
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       console.warn('Push not supported')
       return
     }
-    if (!user.value?.id) {
+    if (!uid) {
       console.warn('No user logged in, skipping push subscribe')
       return
     }
@@ -60,13 +61,13 @@ export const useNotifications = () => {
         return
       }
       const { error } = await supabase.from('push_subscriptions').upsert({
-        user_id: user.value.id,
+        user_id: uid,
         endpoint: json.endpoint,
         p256dh: json.keys.p256dh,
         auth: json.keys.auth,
       }, { onConflict: 'user_id,endpoint' })
       if (error) console.error('Failed to save push subscription:', error)
-      else console.log('Push subscription saved')
+      else console.log('Push subscription saved ✓')
     } catch (e) {
       console.error('Push subscription failed:', e)
     }
@@ -85,7 +86,7 @@ export const useNotifications = () => {
     }
     const result = await Notification.requestPermission()
     permission.value = result
-    if (result === 'granted') await subscribePush()
+    if (result === 'granted') await subscribePush(user.value?.id)
     return result
   }
 

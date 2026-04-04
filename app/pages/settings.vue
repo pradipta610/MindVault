@@ -274,7 +274,7 @@ const presetEmojis = [
 watch(user, async (u) => {
   if (u) {
     fetchCategories()
-    if (notifPermission.value === 'granted') await subscribePush()
+    if (notifPermission.value === 'granted') await subscribePush(u.id)
   }
 }, { immediate: true })
 
@@ -337,7 +337,7 @@ const handleEnableNotif = async () => {
 }
 
 const handleTestNotif = async () => {
-  await subscribePush()
+  if (user.value?.id) await subscribePush(user.value.id)
   await showNow('MindVault', 'Notifikasi berjalan dengan baik!')
   showToast('Test notifikasi dikirim')
 }
