@@ -167,6 +167,13 @@
         @close="showReactivate = false"
         @confirm="handleReactivateConfirm"
       />
+
+      <div v-if="saving" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div class="flex flex-col items-center gap-3">
+          <div class="w-8 h-8 border-3 border-vault-accent border-t-transparent rounded-full animate-spin" />
+          <p class="text-sm text-vault-text font-medium">{{ savingText }}</p>
+        </div>
+      </div>
     </Teleport>
 
     <ActionSheet
@@ -182,9 +189,9 @@
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
-const { tasks, loading: taskLoading, fetchBacklog: fetchTaskBacklog, deleteTask, reactivateTask, clearBacklog: clearTaskBacklog, createTask } = useTasks()
-const { backlogItems, fetchBacklog: fetchDumpBacklog, permanentDelete, restoreToNote, clearAll: clearDumpBacklog } = useBacklog()
+const { backlogItems, backlogLoading, fetchBacklog, permanentDelete, restoreToNote, reactivateToTask, clearAll } = useBacklog()
 const { createNote } = useNotes()
+const { createTask } = useTasks()
 const { show: showToast } = useToast()
 const { fetchCategories, injectAllStyles, getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
 
@@ -195,6 +202,8 @@ const reactivateItem = ref<any>(null)
 const pageLoading = ref(false)
 const showItemActions = ref(false)
 const actionTargetItem = ref<any>(null)
+const saving = ref(false)
+const savingText = ref('')
 
 const sourceFilters = [
   { label: 'Semua', value: 'all' },
@@ -208,28 +217,32 @@ const backlogActionItems = [
   { id: 'delete', label: 'Hapus Permanen', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>', destructive: true },
 ]
 
+// All items come from the backlog table now
 const mergedItems = computed(() => {
-  const todoItems = tasks.value.map((t: any) => ({
-    ...t,
-    _source: 'todo' as const,
-    _key: 'task_' + t.id,
-    _displayText: t.text,
-    _tag: t.cat,
-    _images: [] as string[],
-    _sortTime: t.done_at || t.created_at,
-  }))
-  const dumpItems = backlogItems.value
-    .filter((b: any) => b.source_type === 'dump')
-    .map((b: any) => ({
-      ...b,
-      _source: 'dump' as const,
-      _key: 'backlog_' + b.id,
-      _displayText: b.source_data?.title || b.source_data?.raw || '',
-      _tag: b.source_data?.tag || null,
-      _images: b.source_data?.images || [],
-      _sortTime: b.deleted_at || b.created_at,
-    }))
-  return [...todoItems, ...dumpItems].sort((a, b) =>
+  return backlogItems.value.map((b: any) => {
+    const sd = b.source_data || {}
+    if (b.source_type === 'todo') {
+      return {
+        ...b,
+        _source: 'todo' as const,
+        _key: 'backlog_' + b.id,
+        _displayText: sd.text || '',
+        _tag: sd.cat || null,
+        _images: [] as string[],
+        _sortTime: b.deleted_at || b.created_at,
+      }
+    } else {
+      return {
+        ...b,
+        _source: 'dump' as const,
+        _key: 'backlog_' + b.id,
+        _displayText: sd.title || sd.raw || '',
+        _tag: sd.tag || null,
+        _images: sd.images || [],
+        _sortTime: b.deleted_at || b.created_at,
+      }
+    }
+  }).sort((a: any, b: any) =>
     new Date(b._sortTime).getTime() - new Date(a._sortTime).getTime()
   )
 })
@@ -271,14 +284,24 @@ const handleItemActionSelect = (id: string) => {
 }
 
 const handleRestoreToNote = async (item: any) => {
-  if (item._source === 'dump') {
-    await restoreToNote(item)
-    showToast('Note dikembalikan ke Dump!')
-  } else {
-    const text = item._displayText || ''
-    const tag = item._tag || null
-    await createNote({ raw: text, tag, title: text })
-    showToast('Note dibuat!')
+  saving.value = true
+  savingText.value = 'Mengembalikan...'
+  try {
+    if (item._source === 'dump') {
+      await restoreToNote(item)
+      showToast('Note dikembalikan ke Dump!')
+    } else {
+      // Convert todo backlog item to a note
+      const text = item._displayText || ''
+      const tag = item._tag || null
+      await createNote({ raw: text, tag, title: text })
+      await permanentDelete(item.id)
+      showToast('Note dibuat dari task!')
+    }
+  } catch (e) {
+    showToast('Gagal mengembalikan item')
+  } finally {
+    saving.value = false
   }
 }
 
@@ -290,40 +313,58 @@ const openReactivate = (item: any) => {
 const handleReactivateConfirm = async (data: { text: string; cat: string; date: string }) => {
   const item = reactivateItem.value
   if (!item) return
-
-  if (item._source === 'todo') {
-    await reactivateTask(item.id, data.date)
-  } else {
-    // Create task from backlog dump item, then remove from backlog
-    await createTask({ text: data.text, cat: data.cat, date: data.date })
-    await permanentDelete(item.id)
+  saving.value = true
+  savingText.value = 'Mengaktifkan...'
+  try {
+    if (item._source === 'todo') {
+      // Restore as task from backlog
+      await reactivateToTask(item, data.date)
+    } else {
+      // Create new task from dump backlog item, then remove from backlog
+      await createTask({ text: data.text, cat: data.cat, date: data.date })
+      await permanentDelete(item.id)
+    }
+    showReactivate.value = false
+    showToast('Task diaktifkan!')
+  } catch (e) {
+    showToast('Gagal mengaktifkan task')
+  } finally {
+    saving.value = false
   }
-
-  showReactivate.value = false
-  showToast('Task diaktifkan!')
 }
 
 const handlePermanentDelete = async (item: any) => {
   if (!confirm('Hapus permanen item ini?')) return
-  if (item._source === 'todo') {
-    await deleteTask(item.id)
-  } else {
-    // Pass images for storage cleanup
+  saving.value = true
+  savingText.value = 'Menghapus...'
+  try {
+    // Pass images for storage cleanup (dump items may have images)
     await permanentDelete(item.id, item._images)
+    showToast('Item dihapus permanen')
+  } catch (e) {
+    showToast('Gagal menghapus item')
+  } finally {
+    saving.value = false
   }
-  showToast('Item dihapus permanen')
 }
 
 const handleClearAll = async () => {
   if (!confirm('Hapus semua item di backlog?')) return
-  await clearTaskBacklog()
-  await clearDumpBacklog()
-  showToast('Backlog dibersihkan')
+  saving.value = true
+  savingText.value = 'Membersihkan backlog...'
+  try {
+    await clearAll()
+    showToast('Backlog dibersihkan')
+  } catch (e) {
+    showToast('Gagal membersihkan backlog')
+  } finally {
+    saving.value = false
+  }
 }
 
 const loadBacklog = async () => {
   pageLoading.value = true
-  await Promise.all([fetchCategories(), fetchTaskBacklog(), fetchDumpBacklog()])
+  await Promise.all([fetchCategories(), fetchBacklog()])
   injectAllStyles()
   pageLoading.value = false
 }

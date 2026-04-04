@@ -1,5 +1,6 @@
 const backlogItems = ref<any[]>([])
 const backlogLoaded = ref(false)
+const backlogLoading = ref(false)
 
 export const useBacklog = () => {
   const client: any = useSupabaseClient()
@@ -12,6 +13,7 @@ export const useBacklog = () => {
   const fetchBacklog = async () => {
     const userId = await getUserId()
     if (!userId) return
+    backlogLoading.value = true
     try {
       const { data, error } = await client
         .from('backlog')
@@ -23,6 +25,8 @@ export const useBacklog = () => {
       backlogLoaded.value = true
     } catch (e) {
       console.error('Failed to fetch backlog:', e)
+    } finally {
+      backlogLoading.value = false
     }
   }
 
@@ -85,7 +89,7 @@ export const useBacklog = () => {
       text: task.text,
       cat: task.cat,
       date: task.date,
-      done_at: task.done_at,
+      done_at: new Date().toISOString(),
       rolled_from: task.rolled_from,
       created_at: task.created_at,
     }
@@ -107,6 +111,34 @@ export const useBacklog = () => {
     }
 
     if (data) backlogItems.value.unshift(data)
+    return data
+  }
+
+  const reactivateToTask = async (item: any, date: string) => {
+    const userId = await getUserId()
+    if (!userId) throw new Error('Not authenticated')
+
+    const sd = item.source_data || {}
+    const { data, error } = await client
+      .from('tasks')
+      .insert({
+        user_id: userId,
+        text: sd.text || '',
+        cat: sd.cat || null,
+        date,
+        done: false,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Failed to reactivate task:', error)
+      throw new Error('Failed to reactivate task')
+    }
+
+    // Remove from backlog after successful task creation
+    await client.from('backlog').delete().eq('id', item.id)
+    backlogItems.value = backlogItems.value.filter((i: any) => i.id !== item.id)
     return data
   }
 
@@ -206,11 +238,13 @@ export const useBacklog = () => {
   return {
     backlogItems,
     backlogLoaded,
+    backlogLoading,
     fetchBacklog,
     archiveDump,
     archiveTask,
     permanentDelete,
     restoreToNote,
+    reactivateToTask,
     clearAll,
   }
 }

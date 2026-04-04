@@ -99,34 +99,28 @@ export const useTasks = () => {
     return data
   }
 
-  const toggleTask = async (id: string, done: boolean) => {
+  const completeTask = async (task: any) => {
     const userId = await getUserId()
-    if (!userId) return null
-    const updates: Record<string, any> = { done }
-    if (done) updates.done_at = new Date().toISOString()
-    else updates.done_at = null
+    if (!userId) throw new Error('Not authenticated')
 
-    const { data, error } = await client
+    const { archiveTask } = useBacklog()
+
+    // Step 1: INSERT into backlog — must succeed before deleting
+    await archiveTask(task)
+
+    // Step 2: DELETE from tasks — only after backlog insert succeeded
+    const { error } = await client
       .from('tasks')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
+      .delete()
+      .eq('id', task.id)
+
     if (error) {
-      console.error('Failed to toggle task:', error)
-      return null
+      console.error('Failed to delete task after archiving:', error)
+      throw new Error('Task archived but failed to remove from todo')
     }
-    if (data) {
-      const idx = tasks.value.findIndex((t: any) => t.id === id)
-      if (idx !== -1) {
-        if (done) {
-          tasks.value.splice(idx, 1)
-        } else {
-          tasks.value[idx] = data
-        }
-      }
-    }
-    return data
+
+    // Remove from local state
+    tasks.value = tasks.value.filter((t: any) => t.id !== task.id)
   }
 
   const deleteTask = async (id: string) => {
@@ -140,58 +134,6 @@ export const useTasks = () => {
     tasks.value = tasks.value.filter((t: any) => t.id !== id)
   }
 
-  const fetchBacklog = async () => {
-    const userId = await getUserId()
-    if (!userId) return
-    loading.value = true
-    try {
-      const { data, error } = await client
-        .from('tasks')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('done', true)
-        .order('done_at', { ascending: false })
-      if (error) throw error
-      tasks.value = data || []
-    } catch (e) {
-      console.error('Failed to fetch backlog:', e)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const reactivateTask = async (id: string, date: string) => {
-    const userId = await getUserId()
-    if (!userId) return null
-    const { data, error } = await client
-      .from('tasks')
-      .update({ done: false, done_at: null, date })
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) {
-      console.error('Failed to reactivate task:', error)
-      return null
-    }
-    tasks.value = tasks.value.filter((t: any) => t.id !== id)
-    return data
-  }
-
-  const clearBacklog = async () => {
-    const userId = await getUserId()
-    if (!userId) return
-    const { error } = await client
-      .from('tasks')
-      .delete()
-      .eq('user_id', userId)
-      .eq('done', true)
-    if (error) {
-      console.error('Failed to clear backlog:', error)
-      return
-    }
-    tasks.value = []
-  }
-
   return {
     tasks,
     loading,
@@ -199,10 +141,7 @@ export const useTasks = () => {
     fetchAllPending,
     rolloverTasks,
     createTask,
-    toggleTask,
+    completeTask,
     deleteTask,
-    reactivateTask,
-    fetchBacklog,
-    clearBacklog,
   }
 }

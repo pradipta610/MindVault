@@ -197,7 +197,7 @@
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
-const { tasks, loading, fetchTasksForDate, fetchAllPending, rolloverTasks, createTask, toggleTask, deleteTask } = useTasks()
+const { tasks, loading, fetchTasksForDate, fetchAllPending, rolloverTasks, createTask, completeTask, deleteTask } = useTasks()
 const { createNote } = useNotes()
 const { show: showToast } = useToast()
 const { categoryNames, hasCategories, fetchCategories, injectAllStyles, getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
@@ -314,15 +314,25 @@ const addTask = async () => {
 }
 
 const handleToggle = async (id: string, done: boolean) => {
-  // Optimistic update
+  if (!done) return // Only handle marking as done
   const task = tasks.value.find((t: any) => t.id === id)
-  if (task) task.done = done
+  if (!task) return
+  // Save task data before optimistic removal
+  const taskData = { ...task }
+  const backup = [...tasks.value]
+  tasks.value = tasks.value.filter((t: any) => t.id !== id)
+  saving.value = true
+  savingText.value = 'Menyelesaikan task...'
   try {
-    await toggleTask(id, done)
-    if (done) showToast('Task selesai! Masuk Backlog.')
+    // Sequential: insert backlog first, then delete from tasks
+    await completeTask(taskData)
+    showToast('Task selesai! Masuk Backlog.')
   } catch (e) {
-    if (task) task.done = !done
-    showToast('Gagal mengupdate task')
+    // Revert optimistic update
+    tasks.value = backup
+    showToast('Gagal menyelesaikan task')
+  } finally {
+    saving.value = false
   }
 }
 
