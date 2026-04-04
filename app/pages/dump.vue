@@ -98,7 +98,7 @@
         title="Jadikan Task"
         confirm-label="Buat Task"
         :initial-text="transferNote?.title || transferNote?.raw || ''"
-        :initial-cat="transferNote?.tag || 'misc'"
+        :initial-cat="transferNote?.tag || ''"
         :show-text="true"
         :show-category="true"
         :show-date="true"
@@ -116,6 +116,7 @@ const user = useSupabaseUser()
 const { notes, loading, fetchNotes, createNote, updateNote, archiveNote } = useNotes()
 const { createTask } = useTasks()
 const { show: showToast } = useToast()
+const { uploadImages, deleteImage } = useNoteImages()
 const { categoryNames, hasCategories, fetchCategories, injectAllStyles, getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
 const tags = categoryNames
 
@@ -170,13 +171,43 @@ const handleTransferConfirm = async (data: { text: string; cat: string; date: st
   showToast('Task dibuat!')
 }
 
-const handleSave = async (data: { raw: string; tag: string }) => {
-  if (editingNote.value) {
-    await updateNote(editingNote.value.id, { raw: data.raw, tag: data.tag || null })
-  } else {
-    await createNote({ raw: data.raw, tag: data.tag || null })
+const handleSave = async (data: { raw: string; tag: string; pendingFiles?: File[]; existingImages?: string[]; removedImages?: string[] }) => {
+  try {
+    if (editingNote.value) {
+      // Delete removed images from storage
+      if (data.removedImages?.length) {
+        for (const url of data.removedImages) {
+          await deleteImage(editingNote.value.id, url)
+        }
+      }
+
+      // Upload new pending files
+      let newUrls: string[] = []
+      if (data.pendingFiles?.length) {
+        newUrls = await uploadImages(editingNote.value.id, data.pendingFiles)
+      }
+
+      const finalImages = [...(data.existingImages || []), ...newUrls]
+      await updateNote(editingNote.value.id, {
+        raw: data.raw,
+        tag: data.tag || null,
+        images: finalImages.length > 0 ? finalImages : null,
+      })
+    } else {
+      // Create note first to get ID
+      const note = await createNote({ raw: data.raw, tag: data.tag || null })
+      if (note && data.pendingFiles?.length) {
+        const urls = await uploadImages(note.id, data.pendingFiles)
+        if (urls.length > 0) {
+          await updateNote(note.id, { images: urls })
+        }
+      }
+    }
+    showModal.value = false
+  } catch (e) {
+    console.error('Failed to save note:', e)
+    showToast('Gagal menyimpan note')
   }
-  showModal.value = false
 }
 
 const handleProcess = async (data: { id: string; result: any }) => {

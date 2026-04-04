@@ -1,5 +1,4 @@
 const SEED_CATEGORIES = [
-  { name: 'racc', color: '#4ade80', icon: '🐼' },
   { name: 'freelance', color: '#60a5fa', icon: '💼' },
   { name: 'belajar', color: '#f87171', icon: '📚' },
   { name: 'personal', color: '#2dd4bf', icon: '👤' },

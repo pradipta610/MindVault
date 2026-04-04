@@ -62,7 +62,7 @@
 
         <div v-if="!hasCategories && !seedDismissed" class="mb-4 border border-vault-accent/20 rounded-lg p-4 text-center space-y-3">
           <p class="text-sm text-vault-text">Mau mulai dengan kategori default kami?</p>
-          <p class="text-xs text-vault-muted">racc, freelance, belajar, personal, misc</p>
+          <p class="text-xs text-vault-muted"> freelance, belajar, personal, misc</p>
           <div class="flex gap-2 justify-center">
             <button
               @click="handleSeedDefaults"
