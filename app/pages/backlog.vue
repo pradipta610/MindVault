@@ -186,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import DOMPurify from 'dompurify'
+import DOMPurify from 'isomorphic-dompurify'
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()

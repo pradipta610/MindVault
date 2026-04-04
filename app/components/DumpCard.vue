@@ -151,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import DOMPurify from 'dompurify'
+import DOMPurify from 'isomorphic-dompurify'
 
 const props = defineProps<{ note: any; searchQuery?: string }>()
 const emit = defineEmits(['click', 'delete', 'transfer'])
