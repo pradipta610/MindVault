@@ -198,6 +198,32 @@
         </div>
       </div>
 
+      <!-- Notifications -->
+      <div class="bg-vault-card border border-vault-border rounded-xl p-4">
+        <label class="block text-sm text-vault-text font-medium mb-1">Notifikasi</label>
+        <p class="text-xs text-vault-muted mb-3">Aktifkan notifikasi untuk reminder dan deadline.</p>
+        <div v-if="!notifSupported" class="text-xs text-vault-muted">Browser tidak mendukung notifikasi.</div>
+        <template v-else>
+          <p class="text-xs mb-3" :class="notifPermission === 'granted' ? 'text-green-400' : 'text-vault-muted'">
+            Status: {{ notifPermission === 'granted' ? 'Aktif' : notifPermission === 'denied' ? 'Diblokir (ubah di settings browser)' : 'Belum diaktifkan' }}
+          </p>
+          <button
+            v-if="notifPermission !== 'granted'"
+            @click="handleEnableNotif"
+            class="w-full bg-vault-accent text-vault-bg px-4 py-2 rounded-lg text-sm font-semibold hover:bg-vault-accent-dim transition-colors"
+          >
+            Aktifkan Notifikasi
+          </button>
+          <button
+            v-else
+            @click="handleTestNotif"
+            class="w-full bg-vault-bg border border-vault-border text-vault-muted px-4 py-2 rounded-lg text-sm font-medium hover:text-vault-text transition-colors"
+          >
+            Kirim Test Notifikasi
+          </button>
+        </template>
+      </div>
+
       <button
         @click="handleLogout"
         class="w-full bg-vault-card border border-red-400/20 text-red-400 rounded-xl px-4 py-3 text-sm font-medium hover:bg-red-400/5 transition-colors"
@@ -217,6 +243,7 @@ const { anthropicKey, saveAnthropicKey } = useSettings()
 const { allCategories, hasCategories, fetchCategories, seedDefaults, createCategory, updateCategory, deleteCategory, injectAllStyles } = useCategories()
 const { current: currentTheme, setTheme, themePreviewColors } = useTheme()
 const { show: showToast } = useToast()
+const { isSupported: notifSupported, permission: notifPermission, requestPermission, showNow } = useNotifications()
 
 const themeList = [
   { key: 'dark' as const, label: 'Dark' },
@@ -298,6 +325,17 @@ const handleDeleteCategory = async (id: string, name: string) => {
   if (!confirm(`Hapus kategori "${name}"? Semua notes dan tasks dengan kategori ini akan jadi uncategorized.`)) return
   await deleteCategory(id)
   showToast('Kategori dihapus')
+}
+
+const handleEnableNotif = async () => {
+  const result = await requestPermission()
+  if (result === 'granted') showToast('Notifikasi aktif!')
+  else showToast('Notifikasi tidak diizinkan', 'error')
+}
+
+const handleTestNotif = async () => {
+  await showNow('MindVault', 'Notifikasi berjalan dengan baik!')
+  showToast('Test notifikasi dikirim')
 }
 
 const handleLogout = async () => {
