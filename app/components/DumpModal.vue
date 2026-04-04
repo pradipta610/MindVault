@@ -88,12 +88,9 @@
           <NuxtLink to="/settings" class="text-vault-accent hover:underline" @click="$emit('close')">Tambah di Settings</NuxtLink>
         </div>
 
-        <textarea
+        <TiptapEditor
           v-model="rawText"
           placeholder="Tulis apa aja yang ada di pikiran..."
-          class="w-full bg-vault-bg border border-vault-border rounded-xl p-3 text-vault-text text-sm placeholder:text-vault-muted/50 resize-none focus:outline-none focus:border-vault-accent/30 transition-colors"
-          rows="6"
-          autofocus
         />
 
         <div v-if="note && note.title" class="space-y-3 border-t border-vault-border pt-4">

@@ -105,6 +105,14 @@
         @close="showTransfer = false"
         @confirm="handleTransferConfirm"
       />
+
+      <!-- Loading overlay -->
+      <div v-if="saving" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div class="flex flex-col items-center gap-3">
+          <div class="w-8 h-8 border-3 border-vault-accent border-t-transparent rounded-full animate-spin" />
+          <p class="text-sm text-vault-text font-medium">{{ savingText }}</p>
+        </div>
+      </div>
     </Teleport>
   </div>
 </template>
@@ -127,6 +135,8 @@ const editingNote = ref<any>(null)
 const form = reactive({ raw: '', tag: '' })
 const showTransfer = ref(false)
 const transferNote = ref<any>(null)
+const saving = ref(false)
+const savingText = ref('Menyimpan...')
 
 const filteredNotes = computed(() => {
   if (!searchQuery.value.trim()) return notes.value
@@ -149,7 +159,7 @@ watch(user, async (newUser) => {
 const openNewNote = () => {
   editingNote.value = null
   form.raw = ''
-  form.tag = categoryNames.value[0] || ''
+  form.tag = (activeTag.value !== 'all' ? activeTag.value : categoryNames.value[0]) || ''
   showModal.value = true
 }
 
@@ -166,61 +176,106 @@ const openTransfer = (note: any) => {
 }
 
 const handleTransferConfirm = async (data: { text: string; cat: string; date: string }) => {
-  await createTask({ text: data.text, cat: data.cat || null, date: data.date })
-  showTransfer.value = false
-  showToast('Task dibuat!')
+  saving.value = true
+  savingText.value = 'Membuat task...'
+  try {
+    await createTask({ text: data.text, cat: data.cat || null, date: data.date })
+    showTransfer.value = false
+    showToast('Task dibuat!')
+  } catch (e) {
+    showToast('Gagal membuat task')
+  } finally {
+    saving.value = false
+  }
 }
 
 const handleSave = async (data: { raw: string; tag: string; pendingFiles?: File[]; existingImages?: string[]; removedImages?: string[] }) => {
+  saving.value = true
+  savingText.value = data.pendingFiles?.length ? 'Mengupload foto...' : 'Menyimpan...'
+  showModal.value = false
+
   try {
     if (editingNote.value) {
-      // Delete removed images from storage
-      if (data.removedImages?.length) {
-        for (const url of data.removedImages) {
-          await deleteImage(editingNote.value.id, url)
-        }
+      const noteId = editingNote.value.id
+
+      // Optimistic update local state
+      const idx = notes.value.findIndex((n: any) => n.id === noteId)
+      if (idx !== -1) {
+        notes.value[idx] = { ...notes.value[idx], raw: data.raw, tag: data.tag || null }
       }
 
-      // Upload new pending files
+      // Delete removed images from storage (parallel)
+      if (data.removedImages?.length) {
+        await Promise.all(data.removedImages.map(url => deleteImage(noteId, url)))
+      }
+
+      // Upload new pending files (already parallel in composable)
       let newUrls: string[] = []
       if (data.pendingFiles?.length) {
-        newUrls = await uploadImages(editingNote.value.id, data.pendingFiles)
+        savingText.value = 'Mengupload foto...'
+        newUrls = await uploadImages(noteId, data.pendingFiles)
       }
 
       const finalImages = [...(data.existingImages || []), ...newUrls]
-      await updateNote(editingNote.value.id, {
+      savingText.value = 'Menyimpan...'
+      await updateNote(noteId, {
         raw: data.raw,
         tag: data.tag || null,
         images: finalImages.length > 0 ? finalImages : null,
       })
+      showToast('Note disimpan!')
     } else {
       // Create note first to get ID
       const note = await createNote({ raw: data.raw, tag: data.tag || null })
       if (note && data.pendingFiles?.length) {
+        savingText.value = 'Mengupload foto...'
         const urls = await uploadImages(note.id, data.pendingFiles)
         if (urls.length > 0) {
+          savingText.value = 'Menyimpan...'
           await updateNote(note.id, { images: urls })
         }
       }
+      showToast('Note ditambahkan!')
     }
-    showModal.value = false
   } catch (e) {
     console.error('Failed to save note:', e)
     showToast('Gagal menyimpan note')
+    fetchNotes(activeTag.value)
+  } finally {
+    saving.value = false
   }
 }
 
 const handleProcess = async (data: { id: string; result: any }) => {
-  await updateNote(data.id, {
-    title: data.result.title,
-    poin: data.result.poin,
-    action: data.result.action,
-    fokus: data.result.fokus,
-  })
+  saving.value = true
+  savingText.value = 'Memproses AI...'
+  try {
+    await updateNote(data.id, {
+      title: data.result.title,
+      poin: data.result.poin,
+      action: data.result.action,
+      fokus: data.result.fokus,
+    })
+    showToast('AI processing selesai!')
+  } finally {
+    saving.value = false
+  }
 }
 
 const handleDelete = async (id: string) => {
-  await archiveNote(id)
-  showToast('Note dipindah ke Backlog')
+  saving.value = true
+  savingText.value = 'Menghapus...'
+  // Optimistic: remove from local state immediately
+  const backup = [...notes.value]
+  notes.value = notes.value.filter((n: any) => n.id !== id)
+  try {
+    await archiveNote(id)
+    showToast('Note dipindah ke Backlog')
+  } catch (e) {
+    notes.value = backup
+    showToast('Gagal menghapus note')
+  } finally {
+    saving.value = false
+  }
 }
 </script>

@@ -181,6 +181,16 @@
       </div>
     </div>
   </div>
+
+  <!-- Loading overlay -->
+  <Teleport to="body">
+    <div v-if="saving" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div class="flex flex-col items-center gap-3">
+        <div class="w-8 h-8 border-3 border-vault-accent border-t-transparent rounded-full animate-spin" />
+        <p class="text-sm text-vault-text font-medium">{{ savingText }}</p>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -198,6 +208,8 @@ const selectedDate = ref(new Date().toISOString().split('T')[0])
 const newTask = ref('')
 const newCat = ref('')
 const searchQuery = ref('')
+const saving = ref(false)
+const savingText = ref('Menyimpan...')
 const activeCat = ref('all')
 const activeDateFilter = ref('')
 const customDate = ref('')
@@ -287,23 +299,60 @@ const loadAllPending = () => {
 
 const addTask = async () => {
   if (!newTask.value.trim()) return
-  const date = viewMode.value === 'day' ? selectedDate.value : todayStr.value
-  await createTask({ text: newTask.value.trim(), cat: newCat.value || null, date })
-  newTask.value = ''
+  saving.value = true
+  savingText.value = 'Menambah task...'
+  try {
+    const date = viewMode.value === 'day' ? selectedDate.value : todayStr.value
+    await createTask({ text: newTask.value.trim(), cat: newCat.value || null, date })
+    newTask.value = ''
+    showToast('Task ditambahkan!')
+  } catch (e) {
+    showToast('Gagal menambah task')
+  } finally {
+    saving.value = false
+  }
 }
 
 const handleToggle = async (id: string, done: boolean) => {
-  await toggleTask(id, done)
-  if (done) showToast('Task selesai! Masuk Backlog.')
+  // Optimistic update
+  const task = tasks.value.find((t: any) => t.id === id)
+  if (task) task.done = done
+  try {
+    await toggleTask(id, done)
+    if (done) showToast('Task selesai! Masuk Backlog.')
+  } catch (e) {
+    if (task) task.done = !done
+    showToast('Gagal mengupdate task')
+  }
 }
 
 const handleDeleteTask = async (id: string) => {
-  await deleteTask(id)
+  saving.value = true
+  savingText.value = 'Menghapus...'
+  const backup = [...tasks.value]
+  tasks.value = tasks.value.filter((t: any) => t.id !== id)
+  try {
+    await deleteTask(id)
+    showToast('Task dihapus')
+  } catch (e) {
+    tasks.value = backup
+    showToast('Gagal menghapus task')
+  } finally {
+    saving.value = false
+  }
 }
 
 const handleToNote = async (task: any) => {
-  await createNote({ raw: task.text, tag: task.cat || null, title: task.text })
-  showToast('Note dibuat!')
+  saving.value = true
+  savingText.value = 'Membuat note...'
+  try {
+    await createNote({ raw: task.text, tag: task.cat || null, title: task.text })
+    showToast('Note dibuat!')
+  } catch (e) {
+    showToast('Gagal membuat note')
+  } finally {
+    saving.value = false
+  }
 }
 
 const formatDisplayDate = (dateStr: string) => {
@@ -319,6 +368,13 @@ const formatDisplayDate = (dateStr: string) => {
 
   return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
 }
+
+// BUG 3: Sync newCat with active category filter
+watch(activeCat, (cat) => {
+  if (cat !== 'all') {
+    newCat.value = cat
+  }
+})
 
 watch(user, async (newUser) => {
   if (newUser) {

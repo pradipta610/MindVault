@@ -81,6 +81,11 @@ textarea::placeholder {
   opacity: 0.5;
 }
 
+input, textarea, select {
+  text-transform: none;
+  -webkit-text-size-adjust: 100%;
+}
+
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;

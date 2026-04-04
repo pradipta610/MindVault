@@ -16,41 +16,42 @@ export const useNoteImages = () => {
 
     uploading.value = true
     uploadProgress.value = 0
-    const urls: string[] = []
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]!
-        const compressed = await compressImage(file)
-        const ext = 'jpg'
-        const filename = `${Date.now()}_${i}.${ext}`
+      // Compress all images in parallel
+      const compressed = await Promise.all(
+        files.map(file => compressImage(file))
+      )
+      uploadProgress.value = 30
+
+      // Upload all compressed images in parallel
+      const timestamp = Date.now()
+      const uploadPromises = compressed.map(async (blob, i) => {
+        const filename = `${timestamp}_${i}.jpg`
         const path = `${userId}/${noteId}/${filename}`
 
         const { error } = await client.storage
           .from('dump-images')
-          .upload(path, compressed, {
+          .upload(path, blob, {
             contentType: 'image/jpeg',
             upsert: false,
           })
-
         if (error) throw error
 
         const { data: urlData } = client.storage
           .from('dump-images')
           .getPublicUrl(path)
 
-        if (urlData?.publicUrl) {
-          urls.push(urlData.publicUrl)
-        }
+        return urlData?.publicUrl || null
+      })
 
-        uploadProgress.value = Math.round(((i + 1) / files.length) * 100)
-      }
+      const results = await Promise.all(uploadPromises)
+      uploadProgress.value = 100
+      return results.filter((url): url is string => url !== null)
     } finally {
       uploading.value = false
       uploadProgress.value = 0
     }
-
-    return urls
   }
 
   const deleteImage = async (noteId: string, imageUrl: string) => {
