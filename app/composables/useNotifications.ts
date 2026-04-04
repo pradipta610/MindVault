@@ -8,6 +8,7 @@ interface StoredReminder {
 }
 
 const STORAGE_KEY = 'mv_reminders'
+const VAPID_PUBLIC_KEY = 'BChL9cbK8YyNG_LYr2FYrmQdMJoZ6rr55kR9N7Yid9GPm8AP7Q33LQIgfUJzGmeU9NMrSTl2oewERBso5fSmp-Y'
 
 const getStored = (): Record<string, StoredReminder> => {
   if (typeof window === 'undefined') return {}
@@ -22,15 +23,41 @@ const saveStored = (r: Record<string, StoredReminder>) => {
 
 export const useNotifications = () => {
   const isSupported = typeof window !== 'undefined' && 'Notification' in window
+  const supabase = useSupabaseClient()
+  const user = useSupabaseUser()
 
   const permission = ref<NotificationPermission | 'unsupported'>(
     isSupported ? Notification.permission : 'unsupported'
   )
 
+  // Subscribe to Web Push and store in Supabase
+  const subscribePush = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const existing = await reg.pushManager.getSubscription()
+      const sub = existing || await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: VAPID_PUBLIC_KEY,
+      })
+      const json = sub.toJSON()
+      if (!json.endpoint || !json.keys) return
+      await supabase.from('push_subscriptions').upsert({
+        user_id: user.value?.id,
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+      }, { onConflict: 'user_id,endpoint' })
+    } catch (e) {
+      console.error('Push subscription failed:', e)
+    }
+  }
+
   const requestPermission = async (): Promise<NotificationPermission | 'unsupported'> => {
     if (!isSupported) return 'unsupported'
     if (Notification.permission === 'granted') {
       permission.value = 'granted'
+      await subscribePush()
       return 'granted'
     }
     if (Notification.permission === 'denied') {
@@ -39,6 +66,7 @@ export const useNotifications = () => {
     }
     const result = await Notification.requestPermission()
     permission.value = result
+    if (result === 'granted') await subscribePush()
     return result
   }
 
@@ -67,13 +95,11 @@ export const useNotifications = () => {
   const schedule = async (id: string, title: string, body: string, at: Date) => {
     if (!isSupported) return
 
-    // Ensure we have permission before storing
     if (Notification.permission !== 'granted') {
       const p = await requestPermission()
       if (p !== 'granted') return
     }
 
-    // Cancel any existing timer for this id
     cancel(id)
 
     const stored = getStored()
@@ -82,7 +108,6 @@ export const useNotifications = () => {
 
     const delay = at.getTime() - Date.now()
     if (delay <= 0) {
-      // Already past — show immediately
       _fire(id, title, body)
       return
     }
@@ -99,11 +124,13 @@ export const useNotifications = () => {
     saveStored(stored)
   }
 
-  // Call once on app startup — reschedules all stored reminders
   const init = async () => {
     if (!isSupported) return
     permission.value = Notification.permission
     if (Notification.permission !== 'granted') return
+
+    // Re-register push subscription in case it expired
+    await subscribePush()
 
     const stored = getStored()
     const now = Date.now()
@@ -117,7 +144,6 @@ export const useNotifications = () => {
         overdue.push(id)
         await showNow(r.title, r.body, id)
       } else {
-        // Avoid duplicate timers if init() called more than once
         if (!timers.has(id)) {
           const timer = setTimeout(() => _fire(id, r.title, r.body), delay)
           timers.set(id, timer)

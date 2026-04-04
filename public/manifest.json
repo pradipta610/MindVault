@@ -1,0 +1,17 @@
+{
+  "name": "MindVault",
+  "short_name": "MindVault",
+  "description": "Your personal mind vault",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f0d",
+  "theme_color": "#0f0f0d",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

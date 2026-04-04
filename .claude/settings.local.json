@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx web-push:*)",
+      "Bash(supabase --version)",
+      "Bash(npm list:*)"
+    ]
+  }
+}
