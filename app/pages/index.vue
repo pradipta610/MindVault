@@ -92,11 +92,13 @@ const projectsCount = ref(0)
 
 watch(user, async (u) => {
   if (!u) return
-  const [notesRes, tasksRes] = await Promise.all([
+  const [notesRes, tasksRes, projectsRes] = await Promise.all([
     client.from('notes').select('id', { count: 'exact', head: true }),
     client.from('tasks').select('id', { count: 'exact', head: true }).eq('done', false),
+    client.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'active'),
   ])
   notesCount.value = notesRes.count ?? 0
   tasksCount.value = tasksRes.count ?? 0
+  projectsCount.value = projectsRes.count ?? 0
 }, { immediate: true })
 </script>
