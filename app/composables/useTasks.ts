@@ -78,7 +78,7 @@ export const useTasks = () => {
     }
   }
 
-  const createTask = async (task: { text: string; cat: string | null; date: string; images?: string[] | null }) => {
+  const createTask = async (task: { text: string; cat: string | null; date: string; images?: string[] | null; deadline_at?: string | null }) => {
     const userId = await getUserId()
     if (!userId) return null
     const insert: Record<string, any> = {
@@ -88,6 +88,7 @@ export const useTasks = () => {
       date: task.date,
     }
     if (task.images && task.images.length > 0) insert.images = task.images
+    if (task.deadline_at) insert.deadline_at = task.deadline_at
     const { data, error } = await client
       .from('tasks')
       .insert(insert)

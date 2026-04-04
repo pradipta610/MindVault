@@ -212,6 +212,7 @@ const { tasks, loading, fetchTasksForDate, fetchAllPending, rolloverTasks, creat
 const { createNote, updateNote } = useNotes()
 const { uploadImages, deleteImage } = useNoteImages()
 const { show: showToast } = useToast()
+const { schedule, cancel } = useNotifications()
 const { categoryNames, hasCategories, fetchCategories, injectAllStyles, getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
 
 const categories = categoryNames
@@ -338,6 +339,8 @@ const handleToggle = async (id: string, done: boolean) => {
   saving.value = true
   savingText.value = 'Menyelesaikan task...'
   try {
+    // Cancel any scheduled deadline notification
+    cancel(`task-deadline-${id}`)
     // Sequential: insert backlog first, then delete from tasks
     await completeTask(taskData)
     showToast('Task selesai! Masuk Backlog.')
@@ -358,6 +361,8 @@ const handleDeleteTask = async (id: string) => {
   const backup = [...tasks.value]
   tasks.value = tasks.value.filter((t: any) => t.id !== id)
   try {
+    // Cancel any scheduled deadline notification
+    cancel(`task-deadline-${id}`)
     await completeTask({ ...task })
     showToast('Task dihapus ke Backlog')
   } catch (e) {
@@ -373,12 +378,13 @@ const openTask = (task: any) => {
   showTaskModal.value = true
 }
 
-const handleTaskSave = async (data: { text: string; cat: string; date: string; pendingFiles: File[]; existingImages: string[]; removedImages: string[] }) => {
+const handleTaskSave = async (data: { text: string; cat: string; date: string; pendingFiles: File[]; existingImages: string[]; removedImages: string[]; deadlineAt?: string | null }) => {
   if (!editingTask.value) return
   saving.value = true
   savingText.value = 'Menyimpan task...'
   showTaskModal.value = false
   const taskId = editingTask.value.id
+  const oldDeadline = editingTask.value.deadline_at || null
   try {
     if (data.removedImages.length) {
       await Promise.all(data.removedImages.map(url => deleteImage(taskId, url)))
@@ -393,9 +399,24 @@ const handleTaskSave = async (data: { text: string; cat: string; date: string; p
       text: data.text,
       cat: data.cat || null,
       date: data.date,
+      deadline_at: data.deadlineAt ?? null,
     }
     if (finalImages.length > 0) updates.images = finalImages
     await updateTask(taskId, updates)
+
+    // ── Sync deadline notification ──────────────────────────────────────────
+    const plainText = (data.text || '').replace(/<[^>]*>/g, '').trim()
+    if (data.deadlineAt) {
+      await schedule(
+        `task-deadline-${taskId}`,
+        'MindVault Deadline',
+        plainText.slice(0, 100) || 'Deadline task tiba',
+        new Date(data.deadlineAt)
+      )
+    } else if (!data.deadlineAt && oldDeadline) {
+      cancel(`task-deadline-${taskId}`)
+    }
+
     showToast('Task disimpan!')
   } catch (e) {
     showToast('Gagal menyimpan task')

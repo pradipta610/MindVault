@@ -105,11 +105,19 @@
         </div>
       </div>
 
-      <div v-if="task.rolled_from" class="text-[10px] text-amber-500/70 flex items-center gap-0.5 ml-8">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
-        </svg>
-        dari {{ task.rolled_from }}
+      <div class="flex items-center gap-3 ml-8 mt-0.5 flex-wrap">
+        <div v-if="task.rolled_from" class="text-[10px] text-amber-500/70 flex items-center gap-0.5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
+          </svg>
+          dari {{ task.rolled_from }}
+        </div>
+        <div v-if="task.deadline_at" class="flex items-center gap-0.5 text-[10px]" :class="isOverdue ? 'text-red-400 font-medium' : 'text-vault-muted'">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+          <span>{{ isOverdue ? 'Lewat:' : 'Deadline:' }} {{ formatDeadline(task.deadline_at) }}</span>
+        </div>
       </div>
     </div>
 
@@ -136,6 +144,20 @@ const taskImages = computed(() => {
   if (!props.task.images || !Array.isArray(props.task.images)) return []
   return props.task.images as string[]
 })
+
+const isOverdue = computed(() => {
+  if (!props.task.deadline_at || props.task.done) return false
+  return new Date(props.task.deadline_at) < new Date()
+})
+
+const formatDeadline = (isoStr: string) => {
+  const d = new Date(isoStr)
+  const today = new Date()
+  const isToday = d.toDateString() === today.toDateString()
+  const time = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  if (isToday) return `Hari ini ${time}`
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
 
 const previewText = computed(() => {
   const html = props.task.text || ''

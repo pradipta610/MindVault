@@ -89,6 +89,25 @@
           />
         </div>
 
+        <!-- Deadline datetime (optional) -->
+        <div class="border-t border-vault-border pt-4">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs text-vault-muted font-medium flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              Deadline (opsional)
+            </label>
+            <button v-if="deadlineAt" @click="deadlineAt = ''" class="text-[11px] text-red-400/70 hover:text-red-400 transition-colors">Hapus</button>
+          </div>
+          <input
+            type="datetime-local"
+            v-model="deadlineAt"
+            class="w-full bg-vault-bg border border-vault-border rounded-lg px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors"
+          />
+          <p v-if="deadlineAt" class="text-[11px] text-vault-muted mt-1.5">Notifikasi pengingat akan dikirim pada waktu ini.</p>
+        </div>
+
       </div>
 
       <div class="p-4 border-t border-vault-border flex gap-2">
@@ -137,6 +156,14 @@ const rawText = ref(props.task?.text || props.initialText || '')
 const selectedCat = ref(props.task?.cat || props.initialCat || categoryNames.value[0] || '')
 const selectedDate = ref(props.task?.date || props.initialDate || todayStr)
 
+const toLocalInput = (iso: string | null | undefined): string => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+const deadlineAt = ref(toLocalInput(props.task?.deadline_at))
+
 const existingImages = ref<string[]>([...(props.task?.images || props.initialImages || [])])
 const removedImages = ref<string[]>([])
 const pendingFiles = ref<File[]>([])
@@ -181,6 +208,7 @@ const save = () => {
     pendingFiles: pendingFiles.value,
     existingImages: existingImages.value,
     removedImages: removedImages.value,
+    deadlineAt: deadlineAt.value ? new Date(deadlineAt.value).toISOString() : null,
   })
 }
 

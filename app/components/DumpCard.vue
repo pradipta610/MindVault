@@ -129,6 +129,13 @@
         </span>
       </div>
 
+      <div v-if="note.reminder_at" class="flex items-center gap-1 text-[11px] text-vault-accent/80 mb-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+        </svg>
+        {{ formatReminder(note.reminder_at) }}
+      </div>
+
       <div class="text-[10px] text-vault-muted/60">
         {{ formatDate(note.created_at) }}
       </div>
@@ -212,5 +219,18 @@ const formatDate = (dateStr: string) => {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+const formatReminder = (isoStr: string) => {
+  const d = new Date(isoStr)
+  const today = new Date()
+  const isToday = d.toDateString() === today.toDateString()
+  const tomorrow = new Date(today)
+  tomorrow.setDate(today.getDate() + 1)
+  const isTomorrow = d.toDateString() === tomorrow.toDateString()
+  const time = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  if (isToday) return `Hari ini ${time}`
+  if (isTomorrow) return `Besok ${time}`
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 </script>

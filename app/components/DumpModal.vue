@@ -93,6 +93,25 @@
           placeholder="Tulis apa aja yang ada di pikiran..."
         />
 
+        <!-- Reminder datetime -->
+        <div class="border-t border-vault-border pt-4">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs text-vault-muted font-medium flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+              </svg>
+              Reminder &amp; To-do
+            </label>
+            <button v-if="reminderAt" @click="reminderAt = ''" class="text-[11px] text-red-400/70 hover:text-red-400 transition-colors">Hapus</button>
+          </div>
+          <input
+            type="datetime-local"
+            v-model="reminderAt"
+            class="w-full bg-vault-bg border border-vault-border rounded-lg px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors"
+          />
+          <p class="text-[11px] text-vault-muted mt-1.5">Jika diset, note otomatis masuk To-do pada tanggal ini dan notifikasi akan dikirim.</p>
+        </div>
+
         <div v-if="note && note.title" class="space-y-3 border-t border-vault-border pt-4">
           <div class="flex items-center gap-2">
             <div class="w-1.5 h-1.5 rounded-full bg-vault-accent" />
@@ -200,6 +219,14 @@ const rawText = ref(props.note?.raw || props.initialRaw || '')
 const selectedTag = ref(props.note?.tag || props.initialTag || categoryNames.value[0] || '')
 const processing = ref(false)
 
+const toLocalInput = (iso: string | null | undefined): string => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+const reminderAt = ref(toLocalInput(props.note?.reminder_at))
+
 const existingImages = ref<string[]>([...(props.note?.images || [])])
 const removedImages = ref<string[]>([])
 const pendingFiles = ref<File[]>([])
@@ -264,6 +291,7 @@ const save = () => {
     pendingFiles: pendingFiles.value,
     existingImages: existingImages.value,
     removedImages: removedImages.value,
+    reminderAt: reminderAt.value ? new Date(reminderAt.value).toISOString() : null,
   })
 }
 

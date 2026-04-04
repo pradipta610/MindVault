@@ -44,6 +44,7 @@ export const useBacklog = () => {
       action: note.action,
       fokus: note.fokus,
       created_at: note.created_at,
+      reminder_at: note.reminder_at || null,
     }
 
     // Step 1: INSERT into backlog — must succeed before deleting
@@ -93,6 +94,7 @@ export const useBacklog = () => {
       rolled_from: task.rolled_from,
       created_at: task.created_at,
       images: task.images || [],
+      deadline_at: task.deadline_at || null,
     }
 
     const { data, error } = await client

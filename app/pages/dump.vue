@@ -120,7 +120,8 @@ definePageMeta({ layout: 'default' })
 const user = useSupabaseUser()
 const { notes, loading, fetchNotes, createNote, updateNote } = useNotes()
 const { archiveDump } = useBacklog()
-const { createTask, updateTask } = useTasks()
+const { createTask, updateTask, deleteTask } = useTasks()
+const { schedule, cancel } = useNotifications()
 const { show: showToast } = useToast()
 const { uploadImages, deleteImage } = useNoteImages()
 const { categoryNames, hasCategories, fetchCategories, injectAllStyles, getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
@@ -173,12 +174,13 @@ const openTransfer = (note: any) => {
   showTransfer.value = true
 }
 
-const handleTransferConfirm = async (data: { text: string; cat: string; date: string; pendingFiles: File[]; existingImages: string[]; removedImages: string[] }) => {
+const handleTransferConfirm = async (data: { text: string; cat: string; date: string; pendingFiles: File[]; existingImages: string[]; removedImages: string[]; deadlineAt?: string | null }) => {
   saving.value = true
   savingText.value = 'Membuat task...'
   try {
     const taskPayload: any = { text: data.text, cat: data.cat || null, date: data.date }
     if (data.existingImages.length > 0) taskPayload.images = data.existingImages
+    if (data.deadlineAt) taskPayload.deadline_at = data.deadlineAt
     const task = await createTask(taskPayload)
     if (!task) throw new Error('Failed to create task')
     if (data.pendingFiles.length > 0) {
@@ -187,6 +189,16 @@ const handleTransferConfirm = async (data: { text: string; cat: string; date: st
       if (newUrls.length > 0) {
         await updateTask(task.id, { images: [...data.existingImages, ...newUrls] })
       }
+    }
+    // Schedule deadline notification if set
+    if (data.deadlineAt) {
+      const plainText = (data.text || '').replace(/<[^>]*>/g, '').trim()
+      await schedule(
+        `task-deadline-${task.id}`,
+        'MindVault Deadline',
+        plainText.slice(0, 100) || 'Deadline task tiba',
+        new Date(data.deadlineAt)
+      )
     }
     showTransfer.value = false
     showToast('Task dibuat!')
@@ -197,19 +209,20 @@ const handleTransferConfirm = async (data: { text: string; cat: string; date: st
   }
 }
 
-const handleSave = async (data: { raw: string; tag: string; pendingFiles?: File[]; existingImages?: string[]; removedImages?: string[] }) => {
+const handleSave = async (data: { raw: string; tag: string; pendingFiles?: File[]; existingImages?: string[]; removedImages?: string[]; reminderAt?: string | null }) => {
   saving.value = true
   savingText.value = data.pendingFiles?.length ? 'Mengupload foto...' : 'Menyimpan...'
   showModal.value = false
 
   try {
+    let noteId: string
     if (editingNote.value) {
-      const noteId = editingNote.value.id
+      noteId = editingNote.value.id
 
       // Optimistic update local state
       const idx = notes.value.findIndex((n: any) => n.id === noteId)
       if (idx !== -1) {
-        notes.value[idx] = { ...notes.value[idx], raw: data.raw, tag: data.tag || null }
+        notes.value[idx] = { ...notes.value[idx], raw: data.raw, tag: data.tag || null, reminder_at: data.reminderAt }
       }
 
       // Delete removed images from storage (parallel)
@@ -217,7 +230,7 @@ const handleSave = async (data: { raw: string; tag: string; pendingFiles?: File[
         await Promise.all(data.removedImages.map(url => deleteImage(noteId, url)))
       }
 
-      // Upload new pending files (already parallel in composable)
+      // Upload new pending files
       let newUrls: string[] = []
       if (data.pendingFiles?.length) {
         savingText.value = 'Mengupload foto...'
@@ -230,27 +243,97 @@ const handleSave = async (data: { raw: string; tag: string; pendingFiles?: File[
         raw: data.raw,
         tag: data.tag || null,
         images: finalImages.length > 0 ? finalImages : null,
+        reminder_at: data.reminderAt ?? null,
       })
       showToast('Note disimpan!')
     } else {
       // Create note first to get ID
       const note = await createNote({ raw: data.raw, tag: data.tag || null })
-      if (note && data.pendingFiles?.length) {
+      if (!note) throw new Error('Failed to create note')
+      noteId = note.id
+
+      const updates: Record<string, any> = {}
+      if (data.pendingFiles?.length) {
         savingText.value = 'Mengupload foto...'
         const urls = await uploadImages(note.id, data.pendingFiles)
-        if (urls.length > 0) {
-          savingText.value = 'Menyimpan...'
-          await updateNote(note.id, { images: urls })
-        }
+        if (urls.length > 0) updates.images = urls
+      }
+      if (data.reminderAt) updates.reminder_at = data.reminderAt
+      if (Object.keys(updates).length) {
+        savingText.value = 'Menyimpan...'
+        await updateNote(note.id, updates)
       }
       showToast('Note ditambahkan!')
     }
+
+    // ── Handle reminder → linked task ──────────────────────────────────────
+    await _syncReminderTask(noteId, data)
+
   } catch (e) {
     console.error('Failed to save note:', e)
     showToast('Gagal menyimpan note')
     fetchNotes(activeTag.value)
   } finally {
     saving.value = false
+  }
+}
+
+const _syncReminderTask = async (
+  noteId: string,
+  data: { raw: string; tag: string; reminderAt?: string | null }
+) => {
+  const newReminder = data.reminderAt || null
+  const note = notes.value.find((n: any) => n.id === noteId)
+  const oldReminder = editingNote.value?.reminder_at || null
+  const existingTaskId = editingNote.value?.reminder_task_id || null
+  const plainText = (data.raw || '').replace(/<[^>]*>/g, '').trim()
+
+  if (newReminder) {
+    const reminderDate = newReminder.split('T')[0]
+    const taskPayload = {
+      text: data.raw,
+      cat: data.tag || null,
+      date: reminderDate,
+      deadline_at: newReminder,
+    }
+
+    let linkedTaskId: string | null = null
+
+    if (existingTaskId) {
+      // Update existing linked task
+      try {
+        await updateTask(existingTaskId, taskPayload)
+        linkedTaskId = existingTaskId
+      } catch {
+        // Task may have been deleted; create a fresh one
+        const t = await createTask(taskPayload)
+        linkedTaskId = t?.id ?? null
+      }
+    } else {
+      // Create new linked task
+      const t = await createTask(taskPayload)
+      linkedTaskId = t?.id ?? null
+    }
+
+    // Persist reminder_task_id on note
+    if (linkedTaskId && linkedTaskId !== existingTaskId) {
+      await updateNote(noteId, { reminder_task_id: linkedTaskId })
+    }
+
+    // Schedule / re-schedule notification
+    await schedule(
+      `note-${noteId}`,
+      'MindVault Reminder',
+      plainText.slice(0, 100) || 'Waktu reminder tiba',
+      new Date(newReminder)
+    )
+  } else if (!newReminder && oldReminder) {
+    // Reminder cleared — delete linked task and cancel notification
+    if (existingTaskId) {
+      try { await deleteTask(existingTaskId) } catch {}
+    }
+    await updateNote(noteId, { reminder_at: null, reminder_task_id: null })
+    cancel(`note-${noteId}`)
   }
 }
 
