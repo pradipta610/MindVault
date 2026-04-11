@@ -1,33 +1,37 @@
 <template>
   <div class="py-4 sm:py-6">
-    <div class="flex items-center justify-between mb-4 sm:mb-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
       <h2 class="font-serif text-2xl sm:text-3xl text-vault-text">To-Do</h2>
-      <div class="flex gap-2">
+      <div class="flex items-center gap-2">
+        <!-- Search toggle -->
         <button
-          @click="viewMode = 'day'"
-          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-          :class="viewMode === 'day' ? 'bg-vault-accent/20 text-vault-accent' : 'text-vault-muted hover:text-vault-text'"
+          @click="showSearch = !showSearch"
+          class="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
+          :class="showSearch ? 'bg-vault-accent/20 text-vault-accent' : 'text-vault-muted hover:text-vault-text hover:bg-vault-bg'"
         >
-          Hari Ini
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
         </button>
-        <button
-          @click="viewMode = 'all'; loadAllPending()"
-          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-          :class="viewMode === 'all' ? 'bg-vault-accent/20 text-vault-accent' : 'text-vault-muted hover:text-vault-text'"
-        >
-          Semua
-        </button>
+        <!-- Filter button -->
+        <TodoFilterSheet
+          v-if="hasCategories"
+          v-model="activeCat"
+          :categories="categories"
+        />
       </div>
     </div>
 
-    <div class="relative mb-3 sm:mb-4">
+    <!-- Search bar (collapsible) -->
+    <div v-if="showSearch" class="relative mb-3">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
       </svg>
       <input
         v-model="searchQuery"
         placeholder="Cari task..."
-        class="w-full bg-vault-card border border-vault-border rounded-xl pl-10 pr-8 py-2.5 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
+        class="w-full bg-vault-card border border-vault-border rounded-xl pl-10 pr-8 py-2.5 text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
       />
       <button
         v-if="searchQuery"
@@ -40,89 +44,87 @@
       </button>
     </div>
 
-    <div class="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
-      <button
-        v-for="df in dateFilters"
-        :key="df.value"
-        @click="activeDateFilter = activeDateFilter === df.value ? '' : df.value"
-        class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors"
-        :class="activeDateFilter === df.value
-          ? 'bg-vault-accent/20 border-vault-accent/40 text-vault-accent'
-          : 'bg-vault-card border-vault-border text-vault-muted hover:text-vault-text'"
-      >
-        {{ df.label }}
-      </button>
-      <div class="relative">
-        <input
-          type="date"
-          v-model="customDate"
-          @change="activeDateFilter = 'custom'"
-          class="bg-vault-card border border-vault-border rounded-full text-xs text-vault-muted px-3 py-1.5 focus:outline-none focus:border-vault-accent/30 transition-colors cursor-pointer"
-          :class="activeDateFilter === 'custom' ? 'border-vault-accent/40 text-vault-accent' : ''"
-        />
-      </div>
-    </div>
-
-    <div v-if="hasCategories" class="flex flex-wrap items-center gap-2 mb-4 sm:mb-5">
-      <button
-        @click="activeCat = 'all'"
-        class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors"
-        :class="activeCat === 'all'
-          ? 'bg-vault-accent/20 border-vault-accent/40 text-vault-accent'
-          : 'bg-vault-card border-vault-border text-vault-muted hover:text-vault-text'"
-      >
-        Semua
-      </button>
-      <button
-        v-for="c in categories"
-        :key="c"
-        @click="activeCat = c"
-        class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors inline-flex items-center gap-1"
-        :class="activeCat === c
-          ? 'border-transparent'
-          : 'bg-vault-card border-vault-border text-vault-muted hover:text-vault-text'"
-        :style="activeCat === c ? { backgroundColor: getCategoryColor(c) + '33', color: getCategoryColor(c), borderColor: getCategoryColor(c) + '66' } : {}"
-      >
-        <span class="text-[10px]">{{ getCategoryIcon(c) }}</span>
-        {{ c }}
-      </button>
-      <button
-        v-if="hasActiveFilters"
-        @click="resetFilters"
-        class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border border-red-400/30 text-red-400 hover:bg-red-400/10 transition-colors"
-      >
-        Reset filter
-      </button>
-    </div>
-    <div v-else class="mb-4 sm:mb-5 bg-vault-card border border-vault-border rounded-lg px-4 py-3 flex items-center justify-between">
+    <!-- No categories banner -->
+    <div v-if="!hasCategories" class="mb-4 bg-vault-card border border-vault-border rounded-lg px-4 py-3 flex items-center justify-between">
       <p class="text-xs text-vault-muted">Tambah kategori dulu di Settings</p>
       <NuxtLink to="/settings" class="text-xs text-vault-accent font-medium hover:underline">Ke Settings</NuxtLink>
     </div>
 
-    <MiniCalendar
-      v-if="viewMode === 'day' && !activeDateFilter"
-      :selected-date="selectedDate"
-      @select="onSelectDate"
-      class="mb-4 sm:mb-6"
-    />
-
-    <div v-if="viewMode === 'day' && !activeDateFilter" class="mb-4">
-      <p class="text-sm text-vault-muted">
-        {{ formatDisplayDate(selectedDate) }}
-      </p>
-    </div>
-
-    <div v-if="loading" class="flex justify-center py-12">
-      <div class="w-6 h-6 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" />
-    </div>
-
-    <template v-else>
-      <div v-if="viewMode === 'day'" class="space-y-2">
-        <div v-if="filteredDayTasks.length === 0" class="text-center py-12">
-          <p class="text-vault-muted text-sm">{{ hasActiveFilters || searchQuery ? 'Tidak ada task yang cocok' : 'Tidak ada task untuk hari ini.' }}</p>
+    <!-- ═══ Desktop layout (>768px): side by side ═══ -->
+    <div class="hidden md:grid md:grid-cols-[340px_1fr] md:gap-6">
+      <!-- Left: Calendar -->
+      <div>
+        <div class="bg-vault-card border border-vault-border rounded-xl p-4 sticky top-4">
+          <TodoCalendar
+            ref="calendarRef"
+            :selected-date="selectedDate"
+            :task-dots="taskDots"
+            @select="onSelectDate"
+          />
         </div>
+      </div>
+
+      <!-- Right: Task list -->
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-sm font-medium text-vault-text">{{ formatDisplayDate(selectedDate) }}</p>
+          <button
+            @click="openNewTask"
+            class="flex items-center gap-1.5 bg-vault-accent text-vault-bg px-3.5 py-2 rounded-lg text-sm font-semibold hover:bg-vault-accent-dim transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Task Baru
+          </button>
+        </div>
+
+        <div v-if="loading" class="flex justify-center py-12">
+          <div class="w-6 h-6 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+        <div v-else-if="filteredTasks.length === 0" class="text-center py-12">
+          <p class="text-vault-muted text-sm">{{ searchQuery || activeCat !== 'all' ? 'Tidak ada task yang cocok' : 'Tidak ada task untuk hari ini.' }}</p>
+        </div>
+        <div v-else class="space-y-2">
+          <TaskItem
+            v-for="task in filteredTasks"
+            :key="task.id"
+            :task="task"
+            :search-query="searchQuery"
+            @click="openTask(task)"
+            @toggle="handleToggle(task.id, !task.done)"
+            @delete="handleDeleteTask(task.id)"
+            @to-note="handleToNote(task)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Mobile layout (≤768px): stacked ═══ -->
+    <div class="md:hidden">
+      <!-- Calendar -->
+      <div class="bg-vault-card border border-vault-border rounded-xl p-3 mb-4">
+        <TodoCalendar
+          ref="calendarMobileRef"
+          :selected-date="selectedDate"
+          :task-dots="taskDots"
+          @select="onSelectDate"
+        />
+      </div>
+
+      <!-- Date label -->
+      <p class="text-sm font-medium text-vault-text mb-3">{{ formatDisplayDate(selectedDate) }}</p>
+
+      <!-- Task list -->
+      <div v-if="loading" class="flex justify-center py-12">
+        <div class="w-6 h-6 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+      <div v-else-if="filteredTasks.length === 0" class="text-center py-12 pb-24">
+        <p class="text-vault-muted text-sm">{{ searchQuery || activeCat !== 'all' ? 'Tidak ada task yang cocok' : 'Tidak ada task untuk hari ini.' }}</p>
+      </div>
+      <div v-else class="space-y-2 pb-24">
         <TaskItem
-          v-for="task in filteredDayTasks"
+          v-for="task in filteredTasks"
           :key="task.id"
           :task="task"
           :search-query="searchQuery"
@@ -133,65 +135,26 @@
         />
       </div>
 
-      <div v-else class="space-y-6">
-        <div v-if="filteredGroupedTasks.length === 0" class="text-center py-12">
-          <p class="text-vault-muted text-sm">{{ hasActiveFilters || searchQuery ? 'Tidak ada task yang cocok' : 'Semua bersih! Tidak ada task pending.' }}</p>
-        </div>
-        <div v-for="group in filteredGroupedTasks" :key="group.date">
-          <p class="text-xs text-vault-muted font-medium mb-2 uppercase tracking-wider">
-            {{ formatDisplayDate(group.date) }}
-          </p>
-          <div class="space-y-2">
-            <TaskItem
-              v-for="task in group.tasks"
-              :key="task.id"
-              :task="task"
-              :search-query="searchQuery"
-              @click="openTask(task)"
-              @toggle="handleToggle(task.id, !task.done)"
-              @delete="handleDeleteTask(task.id)"
-              @to-note="handleToNote(task)"
-            />
-          </div>
-        </div>
-      </div>
-    </template>
-
-    <div class="fixed bottom-20 left-0 right-0 z-40 px-3 sm:px-4">
-      <div class="max-w-4xl mx-auto">
-        <form @submit.prevent="addTask" class="flex gap-2">
-          <div class="flex-1 flex gap-2 bg-vault-card border border-vault-border rounded-xl overflow-hidden">
-            <select
-              v-if="hasCategories"
-              v-model="newCat"
-              class="bg-transparent text-xs text-vault-muted px-2 sm:px-3 py-3 focus:outline-none border-r border-vault-border appearance-none cursor-pointer"
-            >
-              <option v-for="c in categories" :key="c" :value="c">{{ getCategoryIcon(c) }} {{ c }}</option>
-            </select>
-            <input
-              v-model="newTask"
-              placeholder="Tambah task baru..."
-              class="flex-1 bg-transparent text-sm text-vault-text placeholder:text-vault-muted/50 py-3 pr-3 focus:outline-none"
-            />
-          </div>
-          <button
-            type="submit"
-            :disabled="!newTask.trim()"
-            class="bg-vault-accent text-vault-bg px-4 rounded-xl font-semibold text-sm hover:bg-vault-accent-dim transition-colors disabled:opacity-30"
-          >
-            +
-          </button>
-        </form>
-      </div>
+      <!-- FAB -->
+      <button
+        @click="openNewTask"
+        class="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-vault-accent text-vault-bg shadow-lg flex items-center justify-center hover:bg-vault-accent-dim transition-colors active:scale-95"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </button>
     </div>
   </div>
 
-  <!-- Task edit modal -->
+  <!-- Task edit/create modal -->
   <Teleport to="body">
     <TaskModal
-      v-if="showTaskModal && editingTask"
+      v-if="showTaskModal"
       :task="editingTask"
-      @close="showTaskModal = false"
+      :initial-date="selectedDate"
+      :initial-cat="activeCat !== 'all' ? activeCat : undefined"
+      @close="showTaskModal = false; editingTask = null"
       @save="handleTaskSave"
     />
 
@@ -208,7 +171,7 @@
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
-const { tasks, loading, fetchTasksForDate, fetchAllPending, rolloverTasks, createTask, updateTask, completeTask, deleteTask } = useTasks()
+const { tasks, loading, fetchTasksForDate, fetchTasksForRange, rolloverTasks, createTask, updateTask, completeTask, deleteTask } = useTasks()
 const { createNote, updateNote } = useNotes()
 const { uploadImages, deleteImage } = useNoteImages()
 const { show: showToast } = useToast()
@@ -216,58 +179,28 @@ const { schedule, cancel } = useNotifications()
 const { categoryNames, hasCategories, fetchCategories, injectAllStyles, getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
 
 const categories = categoryNames
-const viewMode = ref<'day' | 'all'>('day')
-const selectedDate = ref(new Date().toISOString().split('T')[0])
-const newTask = ref('')
-const newCat = ref('')
+const selectedDate = ref(toDateString(new Date()))
 const searchQuery = ref('')
+const showSearch = ref(false)
 const saving = ref(false)
 const savingText = ref('Menyimpan...')
 const activeCat = ref('all')
-const activeDateFilter = ref('')
-const customDate = ref('')
 const showTaskModal = ref(false)
 const editingTask = ref<any>(null)
+const calendarRef = ref<any>(null)
+const calendarMobileRef = ref<any>(null)
+const taskDots = ref<Record<string, string[]>>({})
 
-const todayStr = computed(() => new Date().toISOString().split('T')[0])
-
-const dateFilters = [
-  { label: 'Hari ini', value: 'today' },
-  { label: 'Besok', value: 'tomorrow' },
-  { label: 'Minggu ini', value: 'week' },
-]
-
-const getDateRange = (filter: string): { start: string; end: string } | null => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  if (filter === 'today') {
-    const s = today.toISOString().split('T')[0]
-    return { start: s, end: s }
-  }
-  if (filter === 'tomorrow') {
-    const t = new Date(today)
-    t.setDate(t.getDate() + 1)
-    const s = t.toISOString().split('T')[0]
-    return { start: s, end: s }
-  }
-  if (filter === 'week') {
-    const start = today.toISOString().split('T')[0]
-    const end = new Date(today)
-    end.setDate(end.getDate() + 6)
-    return { start, end: end.toISOString().split('T')[0] }
-  }
-  if (filter === 'custom' && customDate.value) {
-    return { start: customDate.value, end: customDate.value }
-  }
-  return null
+function toDateString(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
-const hasActiveFilters = computed(() => {
-  return searchQuery.value.trim() !== '' || activeCat.value !== 'all' || activeDateFilter.value !== ''
-})
-
-const applyFilters = (list: any[]) => {
-  let result = list
+// ── Filtered tasks for selected date ─────────────────────────────────────
+const filteredTasks = computed(() => {
+  let result = tasks.value
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter((t: any) => (t.text || '').replace(/<[^>]*>/g, '').toLowerCase().includes(q))
@@ -275,77 +208,58 @@ const applyFilters = (list: any[]) => {
   if (activeCat.value !== 'all') {
     result = result.filter((t: any) => t.cat === activeCat.value)
   }
-  const range = getDateRange(activeDateFilter.value)
-  if (range) {
-    result = result.filter((t: any) => t.date >= range.start && t.date <= range.end)
-  }
   return result
-}
-
-const filteredDayTasks = computed(() => applyFilters(tasks.value))
-
-const filteredGroupedTasks = computed(() => {
-  const filtered = applyFilters(tasks.value)
-  const groups: Record<string, any[]> = {}
-  for (const task of filtered) {
-    if (!groups[task.date]) groups[task.date] = []
-    groups[task.date].push(task)
-  }
-  return Object.entries(groups)
-    .map(([date, tasks]) => ({ date, tasks }))
-    .sort((a, b) => a.date.localeCompare(b.date))
 })
 
-const resetFilters = () => {
-  searchQuery.value = ''
-  activeCat.value = 'all'
-  activeDateFilter.value = ''
-  customDate.value = ''
+// ── Calendar dots (category colors per date) ─────────────────────────────
+const loadDots = async () => {
+  const cal = calendarRef.value || calendarMobileRef.value
+  if (!cal?.visibleRange) return
+  const { start, end } = cal.visibleRange
+  if (!start || !end) return
+  const rangeTasks = await fetchTasksForRange(start, end)
+  const dots: Record<string, string[]> = {}
+  for (const t of rangeTasks) {
+    if (!dots[t.date]) dots[t.date] = []
+    dots[t.date].push(t.cat || null)
+  }
+  taskDots.value = dots
 }
 
+// ── Date selection ───────────────────────────────────────────────────────
 const onSelectDate = (date: string) => {
   selectedDate.value = date
   fetchTasksForDate(date)
+  loadDots()
 }
 
-const loadAllPending = () => {
-  fetchAllPending()
+// ── New task ─────────────────────────────────────────────────────────────
+const openNewTask = () => {
+  editingTask.value = null
+  showTaskModal.value = true
 }
 
-const addTask = async () => {
-  if (!newTask.value.trim()) return
-  saving.value = true
-  savingText.value = 'Menambah task...'
-  try {
-    const date = viewMode.value === 'day' ? selectedDate.value : todayStr.value
-    await createTask({ text: newTask.value.trim(), cat: newCat.value || null, date })
-    newTask.value = ''
-    showToast('Task ditambahkan!')
-  } catch (e) {
-    showToast('Gagal menambah task')
-  } finally {
-    saving.value = false
-  }
+const openTask = (task: any) => {
+  editingTask.value = task
+  showTaskModal.value = true
 }
 
+// ── Toggle (mark as done → backlog) ──────────────────────────────────────
 const handleToggle = async (id: string, done: boolean) => {
-  if (!done) return // Only handle marking as done
+  if (!done) return
   const task = tasks.value.find((t: any) => t.id === id)
   if (!task) return
-  // Save task data before optimistic removal
   const taskData = { ...task }
   const backup = [...tasks.value]
   tasks.value = tasks.value.filter((t: any) => t.id !== id)
   saving.value = true
   savingText.value = 'Menyelesaikan task...'
   try {
-    // Cancel any scheduled deadline notification
     cancel(`task-deadline-${id}`)
-    // Sequential: insert backlog first, then delete from tasks
     await completeTask(taskData)
     showToast('Task selesai! Masuk Backlog.')
+    loadDots()
   } catch (e) {
-    // Revert optimistic update
     tasks.value = backup
     showToast('Gagal menyelesaikan task')
   } finally {
@@ -353,6 +267,7 @@ const handleToggle = async (id: string, done: boolean) => {
   }
 }
 
+// ── Delete → backlog ─────────────────────────────────────────────────────
 const handleDeleteTask = async (id: string) => {
   saving.value = true
   savingText.value = 'Menghapus...'
@@ -361,10 +276,10 @@ const handleDeleteTask = async (id: string) => {
   const backup = [...tasks.value]
   tasks.value = tasks.value.filter((t: any) => t.id !== id)
   try {
-    // Cancel any scheduled deadline notification
     cancel(`task-deadline-${id}`)
     await completeTask({ ...task })
     showToast('Task dihapus ke Backlog')
+    loadDots()
   } catch (e) {
     tasks.value = backup
     showToast('Gagal menghapus task')
@@ -373,58 +288,82 @@ const handleDeleteTask = async (id: string) => {
   }
 }
 
-const openTask = (task: any) => {
-  editingTask.value = task
-  showTaskModal.value = true
-}
-
+// ── Save (edit or create) ────────────────────────────────────────────────
 const handleTaskSave = async (data: { text: string; cat: string; date: string; pendingFiles: File[]; existingImages: string[]; removedImages: string[]; deadlineAt?: string | null }) => {
-  if (!editingTask.value) return
   saving.value = true
-  savingText.value = 'Menyimpan task...'
   showTaskModal.value = false
-  const taskId = editingTask.value.id
-  const oldDeadline = editingTask.value.deadline_at || null
-  try {
-    if (data.removedImages.length) {
-      await Promise.all(data.removedImages.map(url => deleteImage(taskId, url)))
-    }
-    let newUrls: string[] = []
-    if (data.pendingFiles.length) {
-      savingText.value = 'Mengupload foto...'
-      newUrls = await uploadImages(taskId, data.pendingFiles)
-    }
-    const finalImages = [...data.existingImages, ...newUrls]
-    const updates: Record<string, any> = {
-      text: data.text,
-      cat: data.cat || null,
-      date: data.date,
-      deadline_at: data.deadlineAt ?? null,
-    }
-    if (finalImages.length > 0) updates.images = finalImages
-    await updateTask(taskId, updates)
 
-    // ── Sync deadline notification ──────────────────────────────────────────
-    const plainText = (data.text || '').replace(/<[^>]*>/g, '').trim()
-    if (data.deadlineAt) {
-      await schedule(
-        `task-deadline-${taskId}`,
-        'MindVault Deadline',
-        plainText.slice(0, 100) || 'Deadline task tiba',
-        new Date(data.deadlineAt)
-      )
-    } else if (!data.deadlineAt && oldDeadline) {
-      cancel(`task-deadline-${taskId}`)
-    }
+  if (editingTask.value) {
+    // ── Edit existing task ──
+    savingText.value = 'Menyimpan task...'
+    const taskId = editingTask.value.id
+    const oldDeadline = editingTask.value.deadline_at || null
+    try {
+      if (data.removedImages.length) {
+        await Promise.all(data.removedImages.map(url => deleteImage(taskId, url)))
+      }
+      let newUrls: string[] = []
+      if (data.pendingFiles.length) {
+        savingText.value = 'Mengupload foto...'
+        newUrls = await uploadImages(taskId, data.pendingFiles)
+      }
+      const finalImages = [...data.existingImages, ...newUrls]
+      const updates: Record<string, any> = {
+        text: data.text,
+        cat: data.cat || null,
+        date: data.date,
+        deadline_at: data.deadlineAt ?? null,
+      }
+      if (finalImages.length > 0) updates.images = finalImages
+      await updateTask(taskId, updates)
 
-    showToast('Task disimpan!')
-  } catch (e) {
-    showToast('Gagal menyimpan task')
-  } finally {
-    saving.value = false
+      const plainText = (data.text || '').replace(/<[^>]*>/g, '').trim()
+      if (data.deadlineAt) {
+        await schedule(`task-deadline-${taskId}`, 'MindVault Deadline', plainText.slice(0, 100) || 'Deadline task tiba', new Date(data.deadlineAt))
+      } else if (!data.deadlineAt && oldDeadline) {
+        cancel(`task-deadline-${taskId}`)
+      }
+
+      // Refresh if the date changed
+      if (data.date !== selectedDate.value) {
+        fetchTasksForDate(selectedDate.value)
+      }
+      showToast('Task disimpan!')
+      loadDots()
+    } catch (e) {
+      showToast('Gagal menyimpan task')
+    }
+  } else {
+    // ── Create new task ──
+    savingText.value = 'Menambah task...'
+    try {
+      const task = await createTask({ text: data.text, cat: data.cat || null, date: data.date })
+      if (task && data.pendingFiles.length) {
+        savingText.value = 'Mengupload foto...'
+        const urls = await uploadImages(task.id, data.pendingFiles)
+        if (urls.length > 0) await updateTask(task.id, { images: urls })
+      }
+      if (task && data.deadlineAt) {
+        await updateTask(task.id, { deadline_at: data.deadlineAt })
+        const plainText = (data.text || '').replace(/<[^>]*>/g, '').trim()
+        await schedule(`task-deadline-${task.id}`, 'MindVault Deadline', plainText.slice(0, 100) || 'Deadline task tiba', new Date(data.deadlineAt))
+      }
+      // Refresh if created for a different date
+      if (data.date !== selectedDate.value) {
+        fetchTasksForDate(selectedDate.value)
+      }
+      showToast('Task ditambahkan!')
+      loadDots()
+    } catch (e) {
+      showToast('Gagal menambah task')
+    }
   }
+
+  editingTask.value = null
+  saving.value = false
 }
 
+// ── To note ──────────────────────────────────────────────────────────────
 const handleToNote = async (task: any) => {
   saving.value = true
   savingText.value = 'Membuat note...'
@@ -441,36 +380,27 @@ const handleToNote = async (task: any) => {
   }
 }
 
+// ── Format ───────────────────────────────────────────────────────────────
 const formatDisplayDate = (dateStr: string) => {
   const d = new Date(dateStr + 'T00:00:00')
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const diff = d.getTime() - today.getTime()
   const days = Math.round(diff / (1000 * 60 * 60 * 24))
-
   if (days === 0) return 'Hari ini'
   if (days === 1) return 'Besok'
   if (days === -1) return 'Kemarin'
-
   return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
-// BUG 3: Sync newCat with active category filter
-watch(activeCat, (cat) => {
-  if (cat !== 'all') {
-    newCat.value = cat
-  }
-})
-
+// ── Init ─────────────────────────────────────────────────────────────────
 watch(user, async (newUser) => {
   if (newUser) {
     await fetchCategories()
     injectAllStyles()
-    if (!newCat.value && categoryNames.value.length > 0) {
-      newCat.value = categoryNames.value[0]
-    }
     await rolloverTasks()
     fetchTasksForDate(selectedDate.value)
+    nextTick(() => loadDots())
   }
 }, { immediate: true })
 </script>

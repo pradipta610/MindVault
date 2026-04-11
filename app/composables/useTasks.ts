@@ -29,6 +29,26 @@ export const useTasks = () => {
     }
   }
 
+  const fetchTasksForRange = async (startDate: string, endDate: string): Promise<any[]> => {
+    const userId = await getUserId()
+    if (!userId) return []
+    try {
+      const { data, error } = await client
+        .from('tasks')
+        .select('id, date, cat, done')
+        .eq('user_id', userId)
+        .eq('done', false)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true })
+      if (error) throw error
+      return data || []
+    } catch (e) {
+      console.error('Failed to fetch tasks for range:', e)
+      return []
+    }
+  }
+
   const fetchAllPending = async () => {
     const userId = await getUserId()
     if (!userId) return
@@ -157,6 +177,7 @@ export const useTasks = () => {
     tasks,
     loading,
     fetchTasksForDate,
+    fetchTasksForRange,
     fetchAllPending,
     rolloverTasks,
     createTask,
