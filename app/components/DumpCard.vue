@@ -1,71 +1,17 @@
 <template>
   <div
-    class="bg-vault-card border border-vault-border rounded-xl overflow-hidden hover:border-vault-accent/20 group relative"
-    :class="expandedIndex !== null ? 'shadow-lg' : 'shadow-sm'"
+    class="bg-vault-card border border-vault-border rounded-xl overflow-hidden hover:border-vault-accent/20 group relative shadow-sm"
     :style="{ transition: 'box-shadow 0.4s ease, background-color 0.3s ease, border-color 0.3s ease' }"
   >
-    <!-- Photo thumbnails — accordion expand -->
-    <div v-if="noteImages.length > 0" class="relative">
-      <div
-        class="overflow-hidden"
-        :style="{
-          maxHeight: expandedIndex !== null ? '2000px' : '200px',
-          transition: 'max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-        }"
-      >
-        <!-- Expanded single image -->
-        <div
-          v-if="expandedIndex !== null"
-          @click.stop="expandedIndex = null"
-          class="cursor-zoom-out"
-        >
-          <img
-            :src="noteImages[expandedIndex]"
-            class="w-full object-contain max-h-[70vh] bg-black/5"
-            :style="{
-              opacity: 1,
-              borderRadius: '0px',
-              transition: 'opacity 0.4s ease, border-radius 0.4s ease',
-            }"
-            loading="lazy"
-          />
-          <div class="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">
-            Klik untuk tutup
-          </div>
-        </div>
-
-        <!-- Collapsed thumbnails -->
-        <template v-else>
-          <div v-if="noteImages.length === 1" class="w-full cursor-zoom-in" @click.stop="expandedIndex = 0">
-            <img
-              :src="noteImages[0]"
-              class="w-full h-40 object-cover"
-              :style="{
-                opacity: 0.95,
-                borderRadius: '0px',
-                transition: 'opacity 0.4s ease, border-radius 0.4s ease',
-              }"
-              loading="lazy"
-            />
-          </div>
-          <div v-else class="grid grid-cols-2 gap-0.5">
-            <img
-              v-for="(img, i) in noteImages.slice(0, 4)"
-              :key="i"
-              :src="img"
-              class="w-full h-24 object-cover cursor-zoom-in hover:brightness-90"
-              :style="{
-                opacity: 0.95,
-                transition: 'opacity 0.3s ease, filter 0.3s ease',
-              }"
-              loading="lazy"
-              @click.stop="expandedIndex = i"
-            />
-          </div>
-          <div v-if="noteImages.length > 4" class="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
-            +{{ noteImages.length - 4 }}
-          </div>
-        </template>
+    <!-- Single thumbnail preview — click opens lightbox -->
+    <div v-if="noteImages.length > 0" class="relative cursor-pointer" @click.stop="lightboxOpen = true">
+      <img
+        :src="noteImages[0]"
+        class="w-full h-40 object-cover"
+        loading="lazy"
+      />
+      <div v-if="noteImages.length > 1" class="absolute bottom-2 right-2 bg-black/60 text-white text-[11px] px-2 py-0.5 rounded-full font-medium">
+        1/{{ noteImages.length }}
       </div>
     </div>
 
@@ -147,6 +93,15 @@
       @close="showActions = false"
       @select="handleActionSelect"
     />
+
+    <Teleport to="body">
+      <ImageLightbox
+        v-if="lightboxOpen"
+        :images="noteImages"
+        :start-index="0"
+        @close="lightboxOpen = false"
+      />
+    </Teleport>
   </div>
 </template>
 
@@ -175,7 +130,7 @@ const handleActionSelect = (id: string) => {
 }
 const { getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
 
-const expandedIndex = ref<number | null>(null)
+const lightboxOpen = ref(false)
 
 const noteImages = computed(() => {
   // Legacy: images stored as separate array

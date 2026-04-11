@@ -113,7 +113,7 @@ const editor = useEditor({
   ],
   editorProps: {
     attributes: {
-      class: 'prose-editor w-full bg-vault-bg border border-vault-border rounded-xl p-3 text-vault-text text-sm min-h-[150px] max-h-[300px] overflow-y-auto focus:outline-none focus:border-vault-accent/30 transition-colors',
+      class: 'prose-editor w-full bg-vault-bg border border-vault-border rounded-xl p-3 text-vault-text min-h-[150px] max-h-[300px] overflow-y-auto focus:outline-none focus:border-vault-accent/30 transition-colors',
     },
     transformPastedHTML(html: string) {
       const doc = new DOMParser().parseFromString(html, 'text/html')
