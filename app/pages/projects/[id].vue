@@ -1,5 +1,5 @@
 <template>
-  <div class="px-4 py-6 max-w-4xl mx-auto w-full pb-16">
+  <div class="py-4 sm:py-6">
 
     <!-- Loading project -->
     <div v-if="projectLoading" class="flex justify-center py-16">
@@ -406,7 +406,7 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: 'home' })
+definePageMeta({ layout: 'default' })
 
 const route = useRoute()
 const router = useRouter()

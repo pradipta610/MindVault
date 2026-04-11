@@ -1,19 +1,9 @@
 <template>
-  <div class="px-4 py-6 max-w-4xl mx-auto w-full">
+  <div class="py-4 sm:py-6">
 
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-3">
-        <NuxtLink
-          to="/"
-          class="w-8 h-8 flex items-center justify-center rounded-lg text-vault-muted hover:text-vault-accent hover:bg-vault-card transition-colors shrink-0"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-          </svg>
-        </NuxtLink>
-        <h1 class="font-serif text-2xl text-vault-text">Projects</h1>
-      </div>
+    <div class="flex items-center justify-between mb-4 sm:mb-6">
+      <h1 class="font-serif text-2xl sm:text-3xl text-vault-text">Projects</h1>
       <button
         @click="openNew"
         class="bg-vault-accent text-vault-bg px-3 py-2 rounded-lg text-sm font-semibold hover:bg-vault-accent-dim transition-colors"
@@ -116,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: 'home' })
+definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
 const { projects, loading, fetchProjects, createProject } = useProjects()

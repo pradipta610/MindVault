@@ -1,5 +1,5 @@
 <template>
-  <div class="px-4 py-6 max-w-4xl mx-auto w-full pb-16">
+  <div class="py-4 sm:py-6">
 
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
@@ -316,7 +316,7 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: 'home' })
+definePageMeta({ layout: 'default' })
 
 const { fetchMonthData, fetchYearTransactions } = useFinance()
 

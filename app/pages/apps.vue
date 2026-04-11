@@ -156,7 +156,7 @@
           v-if="runnerApp"
           :srcdoc="runnerApp.html"
           class="flex-1 w-full border-0 bg-white"
-          sandbox="allow-scripts allow-modals allow-forms allow-popups"
+          sandbox="allow-scripts allow-same-origin allow-modals allow-forms allow-popups"
         />
       </div>
 
