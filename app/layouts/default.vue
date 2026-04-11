@@ -87,10 +87,10 @@
           v-for="tab in tabs"
           :key="tab.to"
           :to="tab.to"
-          class="flex-1 flex flex-col items-center py-3 text-xs font-medium transition-colors"
+          class="flex-1 flex flex-col items-center py-2.5 text-[10px] sm:text-xs font-medium transition-colors min-w-0"
           :class="isActive(tab.to) ? 'text-vault-accent' : 'text-vault-muted hover:text-vault-text'"
         >
-          <div v-html="tab.icon" class="w-5 h-5 mb-1" />
+          <div v-html="tab.icon" class="w-[18px] h-[18px] sm:w-5 sm:h-5 mb-0.5" />
           {{ tab.label }}
         </NuxtLink>
       </div>
@@ -134,6 +134,16 @@ const tabs = [
     to: '/todo',
     label: 'TO-DO',
     icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>'
+  },
+  {
+    to: '/links',
+    label: 'LINKS',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m9.862-2.04a4.5 4.5 0 0 0-1.242-7.244l-4.5-4.5a4.5 4.5 0 0 0-6.364 6.364l1.757 1.757" /></svg>'
+  },
+  {
+    to: '/apps',
+    label: 'APPS',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>'
   },
   {
     to: '/backlog',
