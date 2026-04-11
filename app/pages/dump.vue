@@ -84,6 +84,13 @@
     </div>
 
     <Teleport to="body">
+      <DumpReadModal
+        v-if="showReadModal"
+        :note="readingNote"
+        @close="showReadModal = false"
+        @edit="editFromRead"
+        @delete="deleteFromRead"
+      />
       <DumpModal
         v-if="showModal"
         :note="editingNote"
@@ -123,7 +130,7 @@ const { archiveDump } = useBacklog()
 const { createTask, updateTask, deleteTask } = useTasks()
 const { schedule, cancel } = useNotifications()
 const { show: showToast } = useToast()
-const { uploadImages, deleteImage } = useNoteImages()
+const { uploadImages, cleanupOrphanedImages } = useNoteImages()
 const { categoryNames, hasCategories, fetchCategories, injectAllStyles, getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
 const tags = categoryNames
 
@@ -132,6 +139,8 @@ const searchQuery = ref('')
 const showModal = ref(false)
 const editingNote = ref<any>(null)
 const form = reactive({ raw: '', tag: '' })
+const showReadModal = ref(false)
+const readingNote = ref<any>(null)
 const showTransfer = ref(false)
 const transferNote = ref<any>(null)
 const saving = ref(false)
@@ -163,10 +172,23 @@ const openNewNote = () => {
 }
 
 const openNote = (note: any) => {
-  editingNote.value = note
-  form.raw = note.raw
-  form.tag = note.tag
+  readingNote.value = note
+  showReadModal.value = true
+}
+
+const editFromRead = () => {
+  showReadModal.value = false
+  editingNote.value = readingNote.value
+  form.raw = readingNote.value.raw
+  form.tag = readingNote.value.tag
   showModal.value = true
+}
+
+const deleteFromRead = () => {
+  showReadModal.value = false
+  if (readingNote.value) {
+    handleDelete(readingNote.value.id)
+  }
 }
 
 const openTransfer = (note: any) => {
@@ -209,9 +231,9 @@ const handleTransferConfirm = async (data: { text: string; cat: string; date: st
   }
 }
 
-const handleSave = async (data: { raw: string; tag: string; pendingFiles?: File[]; existingImages?: string[]; removedImages?: string[]; reminderAt?: string | null }) => {
+const handleSave = async (data: { raw: string; tag: string; reminderAt?: string | null }) => {
   saving.value = true
-  savingText.value = data.pendingFiles?.length ? 'Mengupload foto...' : 'Menyimpan...'
+  savingText.value = 'Menyimpan...'
   showModal.value = false
 
   try {
@@ -225,43 +247,23 @@ const handleSave = async (data: { raw: string; tag: string; pendingFiles?: File[
         notes.value[idx] = { ...notes.value[idx], raw: data.raw, tag: data.tag || null, reminder_at: data.reminderAt }
       }
 
-      // Delete removed images from storage (parallel)
-      if (data.removedImages?.length) {
-        await Promise.all(data.removedImages.map(url => deleteImage(noteId, url)))
-      }
+      // Cleanup orphaned images (removed from editor)
+      const oldRaw = editingNote.value.raw || ''
+      await cleanupOrphanedImages(oldRaw, data.raw)
 
-      // Upload new pending files
-      let newUrls: string[] = []
-      if (data.pendingFiles?.length) {
-        savingText.value = 'Mengupload foto...'
-        newUrls = await uploadImages(noteId, data.pendingFiles)
-      }
-
-      const finalImages = [...(data.existingImages || []), ...newUrls]
-      savingText.value = 'Menyimpan...'
       await updateNote(noteId, {
         raw: data.raw,
         tag: data.tag || null,
-        images: finalImages.length > 0 ? finalImages : null,
         reminder_at: data.reminderAt ?? null,
       })
       showToast('Note disimpan!')
     } else {
-      // Create note first to get ID
       const note = await createNote({ raw: data.raw, tag: data.tag || null })
       if (!note) throw new Error('Failed to create note')
       noteId = note.id
 
-      const updates: Record<string, any> = {}
-      if (data.pendingFiles?.length) {
-        savingText.value = 'Mengupload foto...'
-        const urls = await uploadImages(note.id, data.pendingFiles)
-        if (urls.length > 0) updates.images = urls
-      }
-      if (data.reminderAt) updates.reminder_at = data.reminderAt
-      if (Object.keys(updates).length) {
-        savingText.value = 'Menyimpan...'
-        await updateNote(note.id, updates)
+      if (data.reminderAt) {
+        await updateNote(note.id, { reminder_at: data.reminderAt })
       }
       showToast('Note ditambahkan!')
     }

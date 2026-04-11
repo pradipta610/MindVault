@@ -178,8 +178,21 @@ const { getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
 const expandedIndex = ref<number | null>(null)
 
 const noteImages = computed(() => {
-  if (!props.note.images || !Array.isArray(props.note.images)) return []
-  return props.note.images as string[]
+  // Legacy: images stored as separate array
+  if (props.note.images && Array.isArray(props.note.images) && props.note.images.length > 0) {
+    return props.note.images as string[]
+  }
+  // New: extract inline images from HTML content
+  if (props.note.raw) {
+    const regex = /<img[^>]+src="([^"]+)"/g
+    const urls: string[] = []
+    let match
+    while ((match = regex.exec(props.note.raw)) !== null) {
+      if (match[1]) urls.push(match[1])
+    }
+    return urls
+  }
+  return []
 })
 
 const confirmDelete = () => {

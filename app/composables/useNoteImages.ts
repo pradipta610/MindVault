@@ -70,6 +70,64 @@ export const useNoteImages = () => {
     }
   }
 
+  const uploadInlineImage = async (file: File): Promise<string> => {
+    const userId = await getUserId()
+    if (!userId) throw new Error('Not authenticated')
+
+    const compressed = await compressImage(file)
+    const timestamp = Date.now()
+    const rand = Math.random().toString(36).slice(2, 8)
+    const filename = `${timestamp}_${rand}.jpg`
+    const path = `${userId}/inline/${filename}`
+
+    const { error } = await client.storage
+      .from('dump-images')
+      .upload(path, compressed, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      })
+    if (error) throw error
+
+    const { data: urlData } = client.storage
+      .from('dump-images')
+      .getPublicUrl(path)
+
+    if (!urlData?.publicUrl) throw new Error('Failed to get public URL')
+    return urlData.publicUrl
+  }
+
+  const extractImageUrls = (html: string): string[] => {
+    if (!html) return []
+    const regex = /<img[^>]+src="([^"]+)"/g
+    const urls: string[] = []
+    let match
+    while ((match = regex.exec(html)) !== null) {
+      if (match[1]) urls.push(match[1])
+    }
+    return urls
+  }
+
+  const cleanupOrphanedImages = async (oldHtml: string, newHtml: string) => {
+    const oldUrls = extractImageUrls(oldHtml)
+    const newUrls = new Set(extractImageUrls(newHtml))
+    const removed = oldUrls.filter(url => !newUrls.has(url))
+    if (removed.length > 0) {
+      await Promise.all(removed.map(url => deleteImageByUrl(url)))
+    }
+  }
+
+  const deleteImageByUrl = async (imageUrl: string) => {
+    try {
+      const bucketBase = '/dump-images/'
+      const idx = imageUrl.indexOf(bucketBase)
+      if (idx === -1) return
+      const path = imageUrl.substring(idx + bucketBase.length)
+      await client.storage.from('dump-images').remove([path])
+    } catch (e) {
+      console.error('Failed to delete image:', e)
+    }
+  }
+
   const deleteAllNoteImages = async (noteId: string) => {
     const userId = await getUserId()
     if (!userId) return
@@ -93,6 +151,9 @@ export const useNoteImages = () => {
     uploading,
     uploadProgress,
     uploadImages,
+    uploadInlineImage,
+    extractImageUrls,
+    cleanupOrphanedImages,
     deleteImage,
     deleteAllNoteImages,
   }
