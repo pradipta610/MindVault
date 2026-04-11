@@ -45,7 +45,7 @@ export const useProjects = () => {
     return data
   }
 
-  const createProject = async (payload: { name: string; color: string }) => {
+  const createProject = async (payload: { name: string; color: string; icon?: string }) => {
     const userId = await getUserId()
     if (!userId) return null
     const { data, error } = await client
@@ -58,7 +58,7 @@ export const useProjects = () => {
     return data
   }
 
-  const updateProject = async (id: string, payload: Partial<{ name: string; color: string; status: string }>) => {
+  const updateProject = async (id: string, payload: Partial<{ name: string; color: string; icon: string; status: string }>) => {
     const { data, error } = await client
       .from('projects')
       .update(payload)
@@ -89,11 +89,12 @@ export const useProjects = () => {
     return data || []
   }
 
-  const createProjectTask = async (projectId: string, text: string, parentId?: string) => {
+  const createProjectTask = async (projectId: string, text: string, parentId?: string, collaborator?: string) => {
     const userId = await getUserId()
     if (!userId) return null
     const insert: Record<string, any> = { project_id: projectId, user_id: userId, text }
     if (parentId) insert.parent_id = parentId
+    if (collaborator) insert.collaborator = collaborator
     const { data, error } = await client
       .from('project_tasks')
       .insert(insert)
@@ -199,6 +200,80 @@ export const useProjects = () => {
     if (error) console.error('Failed to delete project bug:', error)
   }
 
+  // ── Update project task (collaborator, text) ────────────────────────────────
+
+  const updateProjectTask = async (taskId: string, payload: Partial<{ text: string; collaborator: string | null }>) => {
+    const { data, error } = await client
+      .from('project_tasks')
+      .update(payload)
+      .eq('id', taskId)
+      .select()
+      .single()
+    if (error) { console.error('Failed to update project task:', error); return null }
+    return data
+  }
+
+  // ── Linked Dump notes (notes with project_id) ───────────────────────────────
+
+  const fetchLinkedNotes = async (projectId: string) => {
+    const userId = await getUserId()
+    if (!userId) return []
+    const { data, error } = await client
+      .from('notes')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+    if (error) { console.error('Failed to fetch linked notes:', error); return [] }
+    return data || []
+  }
+
+  // ── Linked Links ────────────────────────────────────────────────────────────
+
+  const fetchLinkedLinks = async (projectId: string) => {
+    const userId = await getUserId()
+    if (!userId) return []
+    const { data, error } = await client
+      .from('links')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+    if (error) { console.error('Failed to fetch linked links:', error); return [] }
+    return data || []
+  }
+
+  // ── Linked Apps ─────────────────────────────────────────────────────────────
+
+  const fetchLinkedApps = async (projectId: string) => {
+    const userId = await getUserId()
+    if (!userId) return []
+    const { data, error } = await client
+      .from('apps')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+    if (error) { console.error('Failed to fetch linked apps:', error); return [] }
+    return data || []
+  }
+
+  // ── Linked Focus Sessions ───────────────────────────────────────────────────
+
+  const fetchLinkedFocusSessions = async (projectId: string) => {
+    const userId = await getUserId()
+    if (!userId) return []
+    const { data, error } = await client
+      .from('focus_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('project_id', projectId)
+      .not('completed_at', 'is', null)
+      .order('started_at', { ascending: false })
+    if (error) { console.error('Failed to fetch linked focus sessions:', error); return [] }
+    return data || []
+  }
+
   return {
     projects,
     loading,
@@ -210,6 +285,7 @@ export const useProjects = () => {
     fetchProjectTasks,
     createProjectTask,
     toggleProjectTask,
+    updateProjectTask,
     deleteProjectTask,
     fetchProjectNotes,
     createProjectNote,
@@ -219,5 +295,9 @@ export const useProjects = () => {
     createProjectBug,
     updateProjectBug,
     deleteProjectBug,
+    fetchLinkedNotes,
+    fetchLinkedLinks,
+    fetchLinkedApps,
+    fetchLinkedFocusSessions,
   }
 }

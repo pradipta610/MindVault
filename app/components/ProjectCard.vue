@@ -5,10 +5,10 @@
   >
     <div class="flex items-start justify-between mb-3">
       <div
-        class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+        class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
         :style="{ backgroundColor: project.color + '22' }"
       >
-        <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: project.color }" />
+        {{ project.icon || '📁' }}
       </div>
       <div class="flex items-center gap-2 mt-0.5">
         <span

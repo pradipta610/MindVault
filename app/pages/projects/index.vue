@@ -62,6 +62,19 @@
 
         <h2 class="font-serif text-xl text-vault-text mb-5">Project Baru</h2>
 
+        <label class="block text-xs text-vault-muted mb-2">Icon</label>
+        <div class="flex flex-wrap gap-2 mb-5">
+          <button
+            v-for="e in emojiOptions"
+            :key="e"
+            @click="newIcon = e"
+            class="w-10 h-10 rounded-xl text-xl flex items-center justify-center border-2 transition-all"
+            :class="newIcon === e ? 'border-vault-accent scale-110 bg-vault-accent/10' : 'border-transparent hover:bg-vault-bg hover:scale-105'"
+          >
+            {{ e }}
+          </button>
+        </div>
+
         <label class="block text-xs text-vault-muted mb-1.5">Nama Project</label>
         <input
           ref="nameInput"
@@ -116,6 +129,7 @@ const filter = ref<'active' | 'done'>('active')
 const showModal = ref(false)
 const newName = ref('')
 const newColor = ref('#6366f1')
+const newIcon = ref('📁')
 const saving = ref(false)
 const nameInput = ref<HTMLInputElement | null>(null)
 
@@ -128,9 +142,12 @@ const filteredProjects = computed(() =>
   projects.value.filter((p: any) => p.status === filter.value)
 )
 
+const emojiOptions = ['📁', '🚀', '💻', '🎨', '📚', '🎯', '💡', '🔧', '🌟', '🌱', '🏠', '🎵', '📷', '📝', '🧠', '❤️']
+
 const openNew = () => {
   newName.value = ''
   newColor.value = '#6366f1'
+  newIcon.value = '📁'
   showModal.value = true
   nextTick(() => nameInput.value?.focus())
 }
@@ -139,7 +156,7 @@ const saveNew = async () => {
   if (!newName.value.trim() || saving.value) return
   saving.value = true
   try {
-    await createProject({ name: newName.value.trim(), color: newColor.value })
+    await createProject({ name: newName.value.trim(), color: newColor.value, icon: newIcon.value })
     showModal.value = false
     showToast('Project dibuat!')
   } catch {

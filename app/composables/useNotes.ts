@@ -31,7 +31,7 @@ export const useNotes = () => {
     }
   }
 
-  const createNote = async (note: { raw: string; tag: string; title?: string }) => {
+  const createNote = async (note: { raw: string; tag: string; title?: string; project_id?: string | null }) => {
     const userId = await getUserId()
     if (!userId) {
       console.error('[createNote] No authenticated user')
@@ -43,6 +43,7 @@ export const useNotes = () => {
       tag: note.tag,
     }
     if (note.title) insert.title = note.title
+    if (note.project_id) insert.project_id = note.project_id
     const { data, error } = await client
       .from('notes')
       .insert(insert)

@@ -27,17 +27,19 @@ export const useApps = () => {
     }
   }
 
-  const createApp = async (payload: { name: string; description?: string; html: string }) => {
+  const createApp = async (payload: { name: string; description?: string; html: string; project_id?: string | null }) => {
     const userId = await getUserId()
     if (!userId) throw new Error('Not authenticated')
+    const insert: Record<string, any> = {
+      user_id: userId,
+      name: payload.name,
+      description: payload.description || null,
+      html: payload.html,
+    }
+    if (payload.project_id) insert.project_id = payload.project_id
     const { data, error } = await client
       .from('apps')
-      .insert({
-        user_id: userId,
-        name: payload.name,
-        description: payload.description || null,
-        html: payload.html,
-      })
+      .insert(insert)
       .select()
       .single()
     if (error) {
