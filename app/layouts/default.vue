@@ -223,6 +223,11 @@ const primaryTabs = [
 // Secondary tabs — visible on desktop, hidden on mobile (shown in More sheet)
 const secondaryTabs = [
   {
+    to: '/focus',
+    label: 'Focus',
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>'
+  },
+  {
     to: '/links',
     label: 'Links',
     icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m9.862-2.04a4.5 4.5 0 0 0-1.242-7.244l-4.5-4.5a4.5 4.5 0 0 0-6.364 6.364l1.757 1.757" /></svg>'
@@ -246,6 +251,7 @@ const secondaryTabs = [
 
 // "More" menu items for mobile sheet
 const moreMenuItems = [
+  { to: '/focus', label: 'Focus', emoji: '⏱️' },
   { to: '/links', label: 'Links', emoji: '🔗' },
   { to: '/apps', label: 'Apps', emoji: '⚡' },
   { to: '/finance', label: 'Finance', emoji: '💰' },
