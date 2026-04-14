@@ -1,12 +1,15 @@
 export const useLinks = () => {
   const client: any = useSupabaseClient()
   const links = ref<any[]>([])
+  const folders = ref<any[]>([])
   const loading = ref(false)
 
   const getUserId = async (): Promise<string | null> => {
     const { data: { user } } = await client.auth.getUser()
     return user?.id ?? null
   }
+
+  // ── Links CRUD ────────────────────────────────────────────────────────
 
   const fetchLinks = async () => {
     const userId = await getUserId()
@@ -45,7 +48,7 @@ export const useLinks = () => {
     return { title: null, description: null, image: null, favicon: null }
   }
 
-  const addLink = async (url: string, projectId?: string | null) => {
+  const addLink = async (url: string, projectId?: string | null, folderId?: string | null) => {
     const userId = await getUserId()
     if (!userId) throw new Error('Not authenticated')
 
@@ -60,6 +63,7 @@ export const useLinks = () => {
       favicon: meta.favicon,
     }
     if (projectId) insert.project_id = projectId
+    if (folderId) insert.folder_id = folderId
 
     const { data, error } = await client
       .from('links')
@@ -72,6 +76,24 @@ export const useLinks = () => {
       throw new Error('Failed to save link')
     }
     if (data) links.value.unshift(data)
+    return data
+  }
+
+  const updateLink = async (id: string, payload: { folder_id?: string | null }) => {
+    const { data, error } = await client
+      .from('links')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) {
+      console.error('Failed to update link:', error)
+      throw new Error('Failed to update link')
+    }
+    if (data) {
+      const idx = links.value.findIndex((l: any) => l.id === id)
+      if (idx !== -1) links.value[idx] = data
+    }
     return data
   }
 
@@ -105,5 +127,59 @@ export const useLinks = () => {
     return data
   }
 
-  return { links, loading, fetchLinks, addLink, deleteLink, refreshMetadata }
+  // ── Folders CRUD ──────────────────────────────────────────────────────
+
+  const fetchLinkFolders = async () => {
+    const userId = await getUserId()
+    if (!userId) return
+    const { data, error } = await client
+      .from('link_folders')
+      .select('*')
+      .eq('user_id', userId)
+      .order('sort_order', { ascending: true })
+    if (error) { console.error('Failed to fetch link folders:', error); return }
+    folders.value = data || []
+  }
+
+  const createLinkFolder = async (name: string) => {
+    const userId = await getUserId()
+    if (!userId) return null
+    const maxOrder = folders.value.reduce((max: number, f: any) => Math.max(max, f.sort_order ?? 0), 0)
+    const { data, error } = await client
+      .from('link_folders')
+      .insert({ user_id: userId, name, sort_order: maxOrder + 1 })
+      .select()
+      .single()
+    if (error) { console.error('Failed to create link folder:', error); return null }
+    if (data) folders.value.push(data)
+    return data
+  }
+
+  const renameLinkFolder = async (id: string, name: string) => {
+    const { data, error } = await client
+      .from('link_folders')
+      .update({ name })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) { console.error('Failed to rename link folder:', error); return null }
+    if (data) {
+      const idx = folders.value.findIndex((f: any) => f.id === id)
+      if (idx !== -1) folders.value[idx] = data
+    }
+    return data
+  }
+
+  const deleteLinkFolder = async (id: string) => {
+    const { error } = await client.from('link_folders').delete().eq('id', id)
+    if (error) { console.error('Failed to delete link folder:', error); return }
+    folders.value = folders.value.filter((f: any) => f.id !== id)
+    links.value = links.value.map((l: any) => l.folder_id === id ? { ...l, folder_id: null } : l)
+  }
+
+  return {
+    links, folders, loading,
+    fetchLinks, addLink, updateLink, deleteLink, refreshMetadata,
+    fetchLinkFolders, createLinkFolder, renameLinkFolder, deleteLinkFolder,
+  }
 }

@@ -56,7 +56,15 @@
     <div v-else class="space-y-5">
 
       <!-- Each folder -->
-      <div v-for="folder in foldersWithApps" :key="folder.id">
+      <div
+        v-for="folder in foldersWithApps"
+        :key="folder.id"
+        @dragover.prevent="onDragOverFolder($event, folder.id)"
+        @dragleave="onDragLeaveFolder(folder.id)"
+        @drop.prevent="onDropFolder($event, folder.id)"
+        :class="{ 'ring-2 ring-vault-accent/40 rounded-xl bg-vault-accent/5': dragOverFolderId === folder.id }"
+        class="transition-all p-2 -m-2"
+      >
         <div class="flex items-center gap-2 mb-2 group/folder">
           <button @click="toggleFolder(folder.id)" class="flex items-center gap-1.5 text-xs font-semibold text-vault-muted uppercase tracking-wider hover:text-vault-text transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform" :class="{ '-rotate-90': collapsedFolders[folder.id] }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
@@ -91,7 +99,14 @@
       </div>
 
       <!-- Uncategorized -->
-      <div v-if="uncategorizedApps.length > 0">
+      <div
+        v-if="uncategorizedApps.length > 0"
+        @dragover.prevent="onDragOverFolder($event, '__uncategorized')"
+        @dragleave="onDragLeaveFolder('__uncategorized')"
+        @drop.prevent="onDropFolder($event, '__uncategorized')"
+        :class="{ 'ring-2 ring-vault-accent/40 rounded-xl bg-vault-accent/5': dragOverFolderId === '__uncategorized' }"
+        class="transition-all p-2 -m-2"
+      >
         <div class="flex items-center gap-2 mb-2">
           <button @click="toggleFolder('__uncategorized')" class="flex items-center gap-1.5 text-xs font-semibold text-vault-muted uppercase tracking-wider hover:text-vault-text transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform" :class="{ '-rotate-90': collapsedFolders['__uncategorized'] }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
@@ -437,6 +452,33 @@ const handleDelete = async (app: any) => {
 
 const toggleFolder = (id: string) => {
   collapsedFolders.value[id] = !collapsedFolders.value[id]
+}
+
+// ── Drag & Drop ──────────────────────────────────────────────────────────
+
+const dragOverFolderId = ref<string | null>(null)
+
+const onDragOverFolder = (e: DragEvent, folderId: string) => {
+  if (e.dataTransfer?.types.includes('application/x-app-id')) {
+    dragOverFolderId.value = folderId
+  }
+}
+
+const onDragLeaveFolder = (folderId: string) => {
+  if (dragOverFolderId.value === folderId) dragOverFolderId.value = null
+}
+
+const onDropFolder = async (e: DragEvent, folderId: string) => {
+  dragOverFolderId.value = null
+  const appId = e.dataTransfer?.getData('application/x-app-id')
+  if (!appId) return
+  const targetFolderId = folderId === '__uncategorized' ? null : folderId
+  try {
+    await updateApp(appId, { folder_id: targetFolderId })
+    showToast('App dipindahkan!')
+  } catch {
+    showToast('Gagal memindahkan app')
+  }
 }
 
 const handleCreateFolder = async () => {

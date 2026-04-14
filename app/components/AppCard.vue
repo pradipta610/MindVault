@@ -1,6 +1,8 @@
 <template>
   <div
     class="group bg-vault-card border border-vault-border rounded-xl p-4 hover:border-vault-accent/20 transition-colors cursor-pointer"
+    draggable="true"
+    @dragstart="onDragStart"
     @click="$emit('run')"
   >
     <div class="flex items-start justify-between gap-2 mb-2">
@@ -62,6 +64,11 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ app: any }>()
+const props = defineProps<{ app: any }>()
 defineEmits(['run', 'edit', 'delete', 'share', 'actions'])
+
+const onDragStart = (e: DragEvent) => {
+  e.dataTransfer?.setData('application/x-app-id', props.app.id)
+  e.dataTransfer!.effectAllowed = 'move'
+}
 </script>
