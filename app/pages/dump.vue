@@ -231,7 +231,7 @@ const handleTransferConfirm = async (data: { text: string; cat: string; date: st
   }
 }
 
-const handleSave = async (data: { raw: string; tag: string; reminderAt?: string | null }) => {
+const handleSave = async (data: { raw: string; tag: string; reminderAt?: string | null; projectId?: string | null }) => {
   saving.value = true
   savingText.value = 'Menyimpan...'
   showModal.value = false
@@ -255,10 +255,11 @@ const handleSave = async (data: { raw: string; tag: string; reminderAt?: string 
         raw: data.raw,
         tag: data.tag || null,
         reminder_at: data.reminderAt ?? null,
+        project_id: data.projectId ?? null,
       })
       showToast('Note disimpan!')
     } else {
-      const note = await createNote({ raw: data.raw, tag: data.tag || null })
+      const note = await createNote({ raw: data.raw, tag: data.tag || '', project_id: data.projectId })
       if (!note) throw new Error('Failed to create note')
       noteId = note.id
 

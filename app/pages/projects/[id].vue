@@ -166,13 +166,64 @@
                 <input v-model="newSubtaskTexts[task.id]" placeholder="Tambah subtask..." class="flex-1 bg-transparent text-xs text-vault-text placeholder:text-vault-muted/50 focus:outline-none" />
                 <button type="submit" :disabled="!newSubtaskTexts[task.id]?.trim()" class="text-[10px] font-semibold text-vault-accent disabled:opacity-30 px-2 py-1">+ Tambah</button>
               </form>
+
+              <!-- Related content from same project -->
+              <div v-if="taskRelatedLoaded[task.id]" class="border-t border-vault-border/50 px-4 py-3 space-y-2">
+                <p class="text-[10px] font-semibold text-vault-muted uppercase tracking-wider">Related Content</p>
+                <div v-if="!taskRelatedNotes.length && !taskRelatedLinks.length && !taskRelatedApps.length" class="text-[11px] text-vault-muted/60">Tidak ada konten terkait.</div>
+                <div v-if="taskRelatedNotes.length > 0" class="space-y-1">
+                  <p class="text-[10px] text-vault-accent font-medium">Notes ({{ taskRelatedNotes.length }})</p>
+                  <div v-for="n in taskRelatedNotes.slice(0, 3)" :key="n.id" class="bg-vault-card/60 rounded-lg px-3 py-2">
+                    <p class="text-[11px] text-vault-text line-clamp-2" v-html="n.raw" />
+                  </div>
+                </div>
+                <div v-if="taskRelatedLinks.length > 0" class="space-y-1">
+                  <p class="text-[10px] text-vault-accent font-medium">Links ({{ taskRelatedLinks.length }})</p>
+                  <a v-for="l in taskRelatedLinks.slice(0, 3)" :key="l.id" :href="l.url" target="_blank" rel="noopener" class="flex items-center gap-2 bg-vault-card/60 rounded-lg px-3 py-2 hover:bg-vault-accent/5 transition-colors">
+                    <img v-if="l.favicon" :src="l.favicon" class="w-4 h-4 rounded shrink-0" />
+                    <span class="text-[11px] text-vault-text truncate">{{ l.title || l.url }}</span>
+                  </a>
+                </div>
+                <div v-if="taskRelatedApps.length > 0" class="space-y-1">
+                  <p class="text-[10px] text-vault-accent font-medium">Apps ({{ taskRelatedApps.length }})</p>
+                  <div v-for="a in taskRelatedApps.slice(0, 3)" :key="a.id" class="bg-vault-card/60 rounded-lg px-3 py-2">
+                    <span class="text-[11px] text-vault-text">{{ a.name }}</span>
+                  </div>
+                </div>
+              </div>
+              <div v-else-if="taskRelatedLoading[task.id]" class="border-t border-vault-border/50 px-4 py-3">
+                <div class="flex items-center gap-2 text-[11px] text-vault-muted">
+                  <div class="w-3 h-3 border border-vault-accent border-t-transparent rounded-full animate-spin" />
+                  Loading related content...
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <form @submit.prevent="addTask" class="flex gap-2">
           <input v-model="newTaskText" placeholder="Tambah task baru..." class="flex-1 bg-vault-card border border-vault-border rounded-xl px-4 py-2.5 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors" />
-          <input v-model="newTaskCollab" placeholder="@collab" class="w-24 bg-vault-card border border-vault-border rounded-xl px-3 py-2.5 text-xs text-vault-muted placeholder:text-vault-muted/40 focus:outline-none focus:border-vault-accent/30 transition-colors" />
+          <div class="relative">
+            <input
+              v-model="newTaskCollab"
+              placeholder="@collab"
+              class="w-28 bg-vault-card border border-vault-border rounded-xl px-3 py-2.5 text-xs text-vault-muted placeholder:text-vault-muted/40 focus:outline-none focus:border-vault-accent/30 transition-colors"
+              @focus="showCollabSuggestions = true"
+              @blur="setTimeout(() => showCollabSuggestions = false, 150)"
+            />
+            <div
+              v-if="showCollabSuggestions && filteredCollabSuggestions.length > 0"
+              class="absolute bottom-full mb-1 left-0 right-0 bg-vault-card border border-vault-border rounded-lg shadow-lg z-20 max-h-32 overflow-y-auto"
+            >
+              <button
+                v-for="s in filteredCollabSuggestions"
+                :key="s"
+                type="button"
+                @mousedown.prevent="pickCollab(s)"
+                class="w-full text-left px-3 py-1.5 text-xs text-vault-text hover:bg-vault-accent/10 transition-colors"
+              >{{ s }}</button>
+            </div>
+          </div>
           <button type="submit" :disabled="!newTaskText.trim()" class="bg-vault-accent text-vault-bg px-4 rounded-xl font-semibold text-sm hover:bg-vault-accent-dim transition-colors disabled:opacity-30">+</button>
         </form>
       </div>
@@ -222,7 +273,10 @@
 
       <!-- ═══ TAB: Linked Dump Notes ═══ -->
       <div v-if="activeTab === 'dump'" class="mb-8">
-        <p class="text-xs text-vault-muted mb-4">Dump notes yang di-link ke project ini (tambah project_id dari Dump page).</p>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-semibold text-vault-muted uppercase tracking-wider">Dump Notes</h2>
+          <button @click="openDumpForProject" class="text-xs text-vault-accent hover:text-vault-accent-dim transition-colors font-medium">+ Add Dump</button>
+        </div>
         <div v-if="linkedNotesLoading" class="flex justify-center py-6"><div class="w-5 h-5 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" /></div>
         <div v-else-if="linkedNotes.length === 0" class="text-sm text-vault-muted text-center py-6">Belum ada dump notes yang di-link.</div>
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -236,7 +290,14 @@
 
       <!-- ═══ TAB: Linked Links ═══ -->
       <div v-if="activeTab === 'links'" class="mb-8">
-        <p class="text-xs text-vault-muted mb-4">Saved links yang di-link ke project ini.</p>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-semibold text-vault-muted uppercase tracking-wider">Links</h2>
+          <button @click="showAddLinkInline = !showAddLinkInline" class="text-xs text-vault-accent hover:text-vault-accent-dim transition-colors font-medium">+ Add Link</button>
+        </div>
+        <form v-if="showAddLinkInline" @submit.prevent="addLinkInline" class="flex gap-2 mb-4">
+          <input v-model="inlineLinkUrl" placeholder="https://example.com" class="flex-1 bg-vault-card border border-vault-border rounded-xl px-4 py-2.5 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors" />
+          <button type="submit" :disabled="!inlineLinkUrl.trim() || inlineLinkSaving" class="bg-vault-accent text-vault-bg px-4 rounded-xl font-semibold text-sm hover:bg-vault-accent-dim transition-colors disabled:opacity-30">{{ inlineLinkSaving ? '...' : '+' }}</button>
+        </form>
         <div v-if="linkedLinksLoading" class="flex justify-center py-6"><div class="w-5 h-5 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" /></div>
         <div v-else-if="linkedLinks.length === 0" class="text-sm text-vault-muted text-center py-6">Belum ada links yang di-link.</div>
         <div v-else class="space-y-2">
@@ -253,7 +314,17 @@
 
       <!-- ═══ TAB: Linked Apps ═══ -->
       <div v-if="activeTab === 'apps'" class="mb-8">
-        <p class="text-xs text-vault-muted mb-4">HTML snippets yang di-link ke project ini.</p>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-semibold text-vault-muted uppercase tracking-wider">Apps</h2>
+          <button @click="showAddAppInline = !showAddAppInline" class="text-xs text-vault-accent hover:text-vault-accent-dim transition-colors font-medium">+ Add App</button>
+        </div>
+        <div v-if="showAddAppInline" class="bg-vault-card border border-vault-border rounded-xl p-4 mb-4 space-y-2">
+          <input v-model="inlineAppName" placeholder="Nama app" class="w-full bg-vault-bg border border-vault-border rounded-lg px-3 py-2 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors" />
+          <textarea v-model="inlineAppHtml" placeholder="Paste HTML..." rows="4" class="w-full bg-vault-bg border border-vault-border rounded-lg px-3 py-2 text-sm text-vault-text font-mono placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 resize-none transition-colors" />
+          <div class="flex justify-end">
+            <button @click="addAppInline" :disabled="!inlineAppName.trim() || !inlineAppHtml.trim() || inlineAppSaving" class="bg-vault-accent text-vault-bg px-4 py-2 rounded-lg text-xs font-semibold hover:bg-vault-accent-dim transition-colors disabled:opacity-30">{{ inlineAppSaving ? 'Saving...' : 'Simpan' }}</button>
+          </div>
+        </div>
         <div v-if="linkedAppsLoading" class="flex justify-center py-6"><div class="w-5 h-5 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" /></div>
         <div v-else-if="linkedApps.length === 0" class="text-sm text-vault-muted text-center py-6">Belum ada apps yang di-link.</div>
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -424,6 +495,15 @@
         </div>
       </div>
 
+      <!-- Dump Modal (for adding dump notes to this project) -->
+      <DumpModal
+        v-if="showDumpModal"
+        :note="null"
+        :initial-project-id="projectId"
+        @close="showDumpModal = false"
+        @save="handleDumpSave"
+      />
+
       <!-- Edit Project Modal -->
       <div v-if="showEditModal" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showEditModal = false" />
@@ -485,6 +565,9 @@ const {
   fetchProjectBugs, createProjectBug, updateProjectBug, deleteProjectBug,
   fetchLinkedNotes, fetchLinkedLinks, fetchLinkedApps, fetchLinkedFocusSessions,
 } = useProjects()
+const { addLink } = useLinks()
+const { createApp: createAppSnippet } = useApps()
+const { createNote: createDumpNote } = useNotes()
 
 const projectId = route.params.id as string
 
@@ -616,7 +699,10 @@ const subtasksOf = (parentId: string) => tasks.value.filter(t => t.parent_id ===
 const subtaskCount = (parentId: string) => tasks.value.filter(t => t.parent_id === parentId).length
 const doneSubtaskCount = (parentId: string) => tasks.value.filter(t => t.parent_id === parentId && t.done).length
 const isExpanded = (id: string) => !!expandedTaskIds.value[id]
-const toggleExpand = (id: string) => { expandedTaskIds.value[id] = !expandedTaskIds.value[id] }
+const toggleExpand = (id: string) => {
+  expandedTaskIds.value[id] = !expandedTaskIds.value[id]
+  if (expandedTaskIds.value[id]) loadTaskRelated(id)
+}
 
 const doneTasks = computed(() => topLevelTasks.value.filter(t => t.done).length)
 const progressPct = computed(() => {
@@ -856,6 +942,135 @@ const loadFocus = async () => {
   focusSessions.value = await fetchLinkedFocusSessions(projectId)
   focusLoading.value = false
   focusLoaded.value = true
+}
+
+// ── Task related content ──────────────────────────────────────────────────
+const taskRelatedNotes = ref<any[]>([])
+const taskRelatedLinks = ref<any[]>([])
+const taskRelatedApps = ref<any[]>([])
+const taskRelatedLoading = ref<Record<string, boolean>>({})
+const taskRelatedLoaded = ref<Record<string, boolean>>({})
+
+const loadTaskRelated = async (taskId: string) => {
+  if (taskRelatedLoaded.value[taskId]) return
+  taskRelatedLoading.value[taskId] = true
+  try {
+    // Reuse already-loaded linked data if available, otherwise fetch
+    if (linkedNotesLoaded.value) {
+      taskRelatedNotes.value = linkedNotes.value
+    } else {
+      taskRelatedNotes.value = await fetchLinkedNotes(projectId)
+      linkedNotes.value = taskRelatedNotes.value
+      linkedNotesLoaded.value = true
+    }
+    if (linkedLinksLoaded.value) {
+      taskRelatedLinks.value = linkedLinks.value
+    } else {
+      taskRelatedLinks.value = await fetchLinkedLinks(projectId)
+      linkedLinks.value = taskRelatedLinks.value
+      linkedLinksLoaded.value = true
+    }
+    if (linkedAppsLoaded.value) {
+      taskRelatedApps.value = linkedApps.value
+    } else {
+      taskRelatedApps.value = await fetchLinkedApps(projectId)
+      linkedApps.value = taskRelatedApps.value
+      linkedAppsLoaded.value = true
+    }
+  } finally {
+    taskRelatedLoading.value[taskId] = false
+    taskRelatedLoaded.value[taskId] = true
+  }
+}
+
+// ── Inline add: Dump ──────────────────────────────────────────────────────
+const showDumpModal = ref(false)
+
+const openDumpForProject = () => {
+  showDumpModal.value = true
+}
+
+const handleDumpSave = async (data: { raw: string; tag: string; projectId?: string | null }) => {
+  showDumpModal.value = false
+  saving.value = true
+  try {
+    const note = await createDumpNote({ raw: data.raw, tag: data.tag || '', project_id: data.projectId || projectId })
+    if (note) {
+      linkedNotes.value.unshift(note)
+      showToast('Dump note ditambahkan ke project!')
+    }
+  } catch (e) {
+    showToast('Gagal menyimpan dump note')
+  } finally { saving.value = false }
+}
+
+// ── Inline add: Links ─────────────────────────────────────────────────────
+const showAddLinkInline = ref(false)
+const inlineLinkUrl = ref('')
+const inlineLinkSaving = ref(false)
+
+const addLinkInline = async () => {
+  let url = inlineLinkUrl.value.trim()
+  if (!url) return
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url
+  inlineLinkSaving.value = true
+  try {
+    const link = await addLink(url, projectId)
+    if (link) {
+      linkedLinks.value.unshift(link)
+      inlineLinkUrl.value = ''
+      showAddLinkInline.value = false
+      showToast('Link ditambahkan ke project!')
+    }
+  } catch (e) {
+    showToast('Gagal menyimpan link')
+  } finally { inlineLinkSaving.value = false }
+}
+
+// ── Inline add: Apps ──────────────────────────────────────────────────────
+const showAddAppInline = ref(false)
+const inlineAppName = ref('')
+const inlineAppHtml = ref('')
+const inlineAppSaving = ref(false)
+
+const addAppInline = async () => {
+  if (!inlineAppName.value.trim() || !inlineAppHtml.value.trim()) return
+  inlineAppSaving.value = true
+  try {
+    const app = await createAppSnippet({
+      name: inlineAppName.value.trim(),
+      html: inlineAppHtml.value,
+      project_id: projectId,
+    })
+    if (app) {
+      linkedApps.value.unshift(app)
+      inlineAppName.value = ''
+      inlineAppHtml.value = ''
+      showAddAppInline.value = false
+      showToast('App ditambahkan ke project!')
+    }
+  } catch (e) {
+    showToast('Gagal menyimpan app')
+  } finally { inlineAppSaving.value = false }
+}
+
+// ── Collaborator autocomplete ─────────────────────────────────────────────
+const collabSuggestions = computed(() => {
+  const set = new Set<string>()
+  for (const t of tasks.value) {
+    if (t.collaborator) set.add(t.collaborator)
+  }
+  return Array.from(set).sort()
+})
+const showCollabSuggestions = ref(false)
+const filteredCollabSuggestions = computed(() => {
+  const q = newTaskCollab.value.trim().toLowerCase()
+  if (!q) return collabSuggestions.value
+  return collabSuggestions.value.filter(s => s.toLowerCase().includes(q))
+})
+const pickCollab = (name: string) => {
+  newTaskCollab.value = name
+  showCollabSuggestions.value = false
 }
 
 // ── Lazy-load tabs ────────────────────────────────────────────────────────

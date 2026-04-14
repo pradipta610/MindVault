@@ -60,6 +60,23 @@
           <p class="text-[11px] text-vault-muted mt-1.5">Jika diset, note otomatis masuk To-do pada tanggal ini dan notifikasi akan dikirim.</p>
         </div>
 
+        <!-- Project link -->
+        <div class="border-t border-vault-border pt-4">
+          <label class="text-xs text-vault-muted font-medium flex items-center gap-1.5 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+            </svg>
+            Add to Project
+          </label>
+          <select
+            v-model="selectedProjectId"
+            class="w-full bg-vault-bg border border-vault-border rounded-lg px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors"
+          >
+            <option :value="null">— Tidak ada —</option>
+            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.icon || '📁' }} {{ p.name }}</option>
+          </select>
+        </div>
+
         <div v-if="note && note.title" class="space-y-3 border-t border-vault-border pt-4">
           <div class="flex items-center gap-2">
             <div class="w-1.5 h-1.5 rounded-full bg-vault-accent" />
@@ -128,16 +145,21 @@ const props = defineProps<{
   note: any
   initialRaw?: string
   initialTag?: string
+  initialProjectId?: string | null
 }>()
 
 const emit = defineEmits(['close', 'save', 'process'])
 
 const { categoryNames, getCategoryColor, getCategoryIcon } = useCategories()
 const { uploadInlineImage } = useNoteImages()
+const { projects, fetchProjects } = useProjects()
 const tags = categoryNames
 const rawText = ref(props.note?.raw || props.initialRaw || '')
 const selectedTag = ref(props.note?.tag || props.initialTag || categoryNames.value[0] || '')
+const selectedProjectId = ref<string | null>(props.note?.project_id || props.initialProjectId || null)
 const processing = ref(false)
+
+onMounted(() => { if (!projects.value.length) fetchProjects() })
 
 const toLocalInput = (iso: string | null | undefined): string => {
   if (!iso) return ''
@@ -166,6 +188,7 @@ const save = () => {
     raw: rawText.value,
     tag: selectedTag.value,
     reminderAt: reminderAt.value ? new Date(reminderAt.value).toISOString() : null,
+    projectId: selectedProjectId.value,
   })
 }
 

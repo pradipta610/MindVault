@@ -147,7 +147,7 @@
           <div class="p-4 sm:p-5 border-b border-vault-border">
             <h3 class="font-serif text-lg text-vault-text">Tambah Link</h3>
           </div>
-          <div class="p-4 sm:p-5">
+          <div class="p-4 sm:p-5 space-y-3">
             <input
               ref="urlInput"
               v-model="newUrl"
@@ -155,6 +155,16 @@
               class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
               @keydown.enter="handleAdd"
             />
+            <div>
+              <label class="text-xs text-vault-muted font-medium flex items-center gap-1.5 mb-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
+                Add to Project
+              </label>
+              <select v-model="newLinkProjectId" class="w-full bg-vault-bg border border-vault-border rounded-xl px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors">
+                <option :value="null">— Tidak ada —</option>
+                <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.icon || '📁' }} {{ p.name }}</option>
+              </select>
+            </div>
           </div>
           <div class="p-4 sm:p-5 border-t border-vault-border flex justify-end gap-2">
             <button
@@ -198,11 +208,13 @@ definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
 const { links, loading, fetchLinks, addLink, deleteLink, refreshMetadata } = useLinks()
+const { projects: projectList, fetchProjects } = useProjects()
 const { show: showToast } = useToast()
 
 const searchQuery = ref('')
 const showAddModal = ref(false)
 const newUrl = ref('')
+const newLinkProjectId = ref<string | null>(null)
 const saving = ref(false)
 const savingText = ref('')
 const urlInput = ref<HTMLInputElement | null>(null)
@@ -238,8 +250,9 @@ const handleAdd = async () => {
   saving.value = true
   savingText.value = 'Mengambil preview...'
   try {
-    await addLink(url)
+    await addLink(url, newLinkProjectId.value)
     newUrl.value = ''
+    newLinkProjectId.value = null
     showAddModal.value = false
     showToast('Link disimpan!')
   } catch (e) {
@@ -301,7 +314,10 @@ const handleActionSelect = (id: string) => {
 }
 
 watch(showAddModal, (v) => {
-  if (v) nextTick(() => urlInput.value?.focus())
+  if (v) {
+    nextTick(() => urlInput.value?.focus())
+    if (!projectList.value.length) fetchProjects()
+  }
 })
 
 watch(user, (u) => {
