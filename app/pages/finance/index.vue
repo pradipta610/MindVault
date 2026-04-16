@@ -4,20 +4,26 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-4 sm:mb-6">
       <h1 class="font-serif text-2xl sm:text-3xl text-vault-text">Keuangan</h1>
-      <div class="flex items-center gap-2">
-        <NuxtLink
-          to="/finance/analytics"
-          class="text-xs text-vault-muted hover:text-vault-accent border border-vault-border hover:border-vault-accent/40 px-3 py-1.5 rounded-lg transition-colors"
-        >
-          Analisa
-        </NuxtLink>
-        <button
-          @click="openAdd"
-          class="bg-vault-accent text-vault-bg px-3 py-2 rounded-lg text-sm font-semibold hover:bg-vault-accent-dim transition-colors"
-        >
-          + Tambah
-        </button>
-      </div>
+      <NuxtLink
+        to="/finance/analytics"
+        class="text-xs text-vault-muted hover:text-vault-accent border border-vault-border hover:border-vault-accent/40 px-3 py-1.5 rounded-lg transition-colors"
+      >
+        Analisa
+      </NuxtLink>
+    </div>
+
+    <!-- Spending limit warnings -->
+    <div v-if="limitWarning && !limitDismissed" class="mb-4 flex items-start gap-2.5 px-3.5 py-3 rounded-xl border" :class="limitWarning === 'exceeded' ? 'bg-vault-negative/10 border-vault-negative/20' : 'bg-amber-500/10 border-amber-500/20'">
+      <span class="text-sm shrink-0 mt-0.5">{{ limitWarning === 'exceeded' ? '🛑' : '⚠️' }}</span>
+      <p class="text-xs leading-relaxed flex-1" :class="limitWarning === 'exceeded' ? 'text-vault-negative' : 'text-amber-500'">
+        {{ limitWarning === 'exceeded'
+          ? `Pengeluaran kamu sudah mencapai batas ${formatIDR(spendingLimit!)} — yuk kurangi belanja!`
+          : `Hampir mencapai batas pengeluaran kamu (${formatIDR(spendingLimit!)})`
+        }}
+      </p>
+      <button @click="limitDismissed = true" class="shrink-0 p-0.5" :class="limitWarning === 'exceeded' ? 'text-vault-negative/50 hover:text-vault-negative' : 'text-amber-500/50 hover:text-amber-500'">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+      </button>
     </div>
 
     <!-- Month navigation -->
@@ -68,34 +74,61 @@
 
         <!-- Middle: Two mini cards -->
         <div class="flex gap-3 mb-4">
-          <div class="flex-1 rounded-[10px] px-3 py-2.5" style="background-color: #0f1f0f">
+          <div class="flex-1 rounded-[10px] px-3 py-2.5 bg-vault-positive/10 border border-vault-positive/15">
             <div class="flex items-center gap-1.5 mb-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span class="w-1.5 h-1.5 rounded-full" style="background-color: var(--v-positive)" />
               <span class="text-[10px] text-vault-muted uppercase tracking-wider">Pemasukan</span>
             </div>
-            <p class="text-white font-medium text-sm">{{ formatIDR(totalIncome) }}</p>
+            <p class="text-vault-text font-medium text-sm">{{ formatIDR(totalIncome) }}</p>
           </div>
-          <div class="flex-1 rounded-[10px] px-3 py-2.5" style="background-color: #1f0f0f">
+          <div class="flex-1 rounded-[10px] px-3 py-2.5 bg-vault-negative/10 border border-vault-negative/15">
             <div class="flex items-center gap-1.5 mb-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-red-500" />
+              <span class="w-1.5 h-1.5 rounded-full" style="background-color: var(--v-negative)" />
               <span class="text-[10px] text-vault-muted uppercase tracking-wider">Pengeluaran</span>
             </div>
-            <p class="text-white font-medium text-sm">{{ formatIDR(totalExpense) }}</p>
+            <p class="text-vault-text font-medium text-sm">{{ formatIDR(totalExpense) }}</p>
           </div>
         </div>
 
-        <!-- Bottom: Progress bar -->
-        <div v-if="totalIncome > 0">
-          <div class="h-1 rounded-full overflow-hidden" style="background-color: #2a2a2a">
-            <div
-              class="h-full rounded-full transition-all duration-700"
-              :style="{ width: Math.min(100, expenseRatio) + '%', background: progressGradient }"
-            />
+        <!-- Bottom: Progress bar + spending limit -->
+        <div v-if="totalIncome > 0 || spendingLimit">
+          <div class="flex items-center gap-2 mb-1.5">
+            <div class="h-1 rounded-full overflow-hidden flex-1 bg-vault-border">
+              <div
+                class="h-full rounded-full transition-all duration-700"
+                :style="{ width: progressWidth + '%', background: progressGradient }"
+              />
+            </div>
+            <button @click="openLimitEditor" class="text-vault-muted/50 hover:text-vault-accent transition-colors shrink-0 p-0.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+              </svg>
+            </button>
           </div>
-          <p class="text-[10px] text-vault-muted text-right mt-1.5">{{ expenseRatio }}% dari pemasukan terpakai</p>
+          <p class="text-[10px] text-vault-muted text-right">
+            <template v-if="spendingLimit">{{ expenseLimitRatio }}% dari batas {{ formatIDR(spendingLimit) }}</template>
+            <template v-else-if="totalIncome > 0">{{ expenseRatio }}% dari pemasukan terpakai</template>
+          </p>
         </div>
         <div v-else-if="totalExpense > 0">
-          <p class="text-[10px] text-amber-500">Belum ada pemasukan dicatat bulan ini</p>
+          <div class="flex items-center justify-between">
+            <p class="text-[10px] text-amber-500">Belum ada pemasukan dicatat bulan ini</p>
+            <button @click="openLimitEditor" class="text-vault-muted/50 hover:text-vault-accent transition-colors shrink-0 p-0.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div v-else>
+          <div class="flex items-center justify-end">
+            <button @click="openLimitEditor" class="text-[10px] text-vault-muted/50 hover:text-vault-accent transition-colors flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+              </svg>
+              Atur batas pengeluaran
+            </button>
+          </div>
         </div>
       </div>
 
@@ -172,6 +205,54 @@
       </template>
     </template>
 
+    <!-- Glassmorphic FAB -->
+    <div class="fixed bottom-20 left-1/2 -translate-x-1/2 z-[50]">
+      <button
+        @click="openAdd"
+        class="w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-90"
+        style="background: rgba(255,255,255,0.1); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 0.5px solid rgba(255,255,255,0.2); box-shadow: 0 4px 24px rgba(0,0,0,0.15)"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-vault-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- ── Spending Limit Editor ───────────────────────────────────────────── -->
+    <Teleport to="body">
+      <div v-if="showLimitModal" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showLimitModal = false" />
+        <div class="relative bg-vault-card border border-vault-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5">
+          <h3 class="font-serif text-lg text-vault-text mb-1">Batas Pengeluaran</h3>
+          <p class="text-xs text-vault-muted mb-4">Atur batas pengeluaran bulanan. Kosongkan untuk menghapus.</p>
+          <div class="bg-vault-bg border border-vault-border rounded-xl px-4 py-3 text-center mb-4">
+            <p class="text-[10px] text-vault-muted mb-1.5 uppercase tracking-wider">Nominal (Rp)</p>
+            <input
+              ref="limitInput"
+              v-model="limitFormValue"
+              type="number"
+              min="0"
+              placeholder="0"
+              class="w-full bg-transparent text-2xl font-serif text-center text-vault-text focus:outline-none placeholder:text-vault-muted/30"
+              inputmode="numeric"
+            />
+            <p v-if="limitFormValue" class="text-xs text-vault-muted mt-1">{{ formatIDR(Number(limitFormValue)) }}</p>
+          </div>
+          <div class="flex gap-2">
+            <button @click="showLimitModal = false" class="flex-1 py-2.5 rounded-xl text-sm text-vault-muted border border-vault-border hover:bg-vault-bg transition-colors">
+              Batal
+            </button>
+            <button @click="saveLimit" class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-vault-accent text-vault-bg hover:bg-vault-accent-dim transition-colors">
+              Simpan
+            </button>
+          </div>
+          <button v-if="spendingLimit" @click="clearLimit" class="w-full mt-2 py-2 text-[11px] text-vault-negative/70 hover:text-vault-negative transition-colors">
+            Hapus batas
+          </button>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- ── Add / Edit Modal ──────────────────────────────────────────────── -->
     <Teleport to="body">
       <div v-if="showModal" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
@@ -244,6 +325,8 @@
         </div>
       </div>
     </Teleport>
+    <!-- FAB clearance -->
+    <div class="h-20" />
   </div>
 </template>
 
@@ -318,8 +401,71 @@ const totalIncome = computed(() => transactions.value.filter(t => t.type === 'in
 const totalExpense = computed(() => transactions.value.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0))
 const netBalance = computed(() => totalIncome.value - totalExpense.value)
 const expenseRatio = computed(() => !totalIncome.value ? 0 : Math.round((totalExpense.value / totalIncome.value) * 100))
+
+// ── Spending Limit ──────────────────────────────────────────────────────────
+const LIMIT_KEY = 'mindvault_spending_limit'
+const spendingLimit = ref<number | null>(null)
+const limitDismissed = ref(false)
+const showLimitModal = ref(false)
+const limitFormValue = ref('')
+const limitInput = ref<HTMLInputElement | null>(null)
+
+const loadSpendingLimit = () => {
+  if (import.meta.client) {
+    const saved = localStorage.getItem(LIMIT_KEY)
+    spendingLimit.value = saved ? Number(saved) : null
+  }
+}
+loadSpendingLimit()
+
+const openLimitEditor = () => {
+  limitFormValue.value = spendingLimit.value ? String(spendingLimit.value) : ''
+  showLimitModal.value = true
+  nextTick(() => limitInput.value?.focus())
+}
+
+const saveLimit = () => {
+  const val = Number(limitFormValue.value)
+  if (val > 0) {
+    spendingLimit.value = val
+    localStorage.setItem(LIMIT_KEY, String(val))
+  } else {
+    spendingLimit.value = null
+    localStorage.removeItem(LIMIT_KEY)
+  }
+  limitDismissed.value = false
+  showLimitModal.value = false
+  showToast(val > 0 ? 'Batas pengeluaran disimpan!' : 'Batas pengeluaran dihapus')
+}
+
+const clearLimit = () => {
+  spendingLimit.value = null
+  localStorage.removeItem(LIMIT_KEY)
+  limitDismissed.value = false
+  showLimitModal.value = false
+  showToast('Batas pengeluaran dihapus')
+}
+
+const expenseLimitRatio = computed(() => {
+  if (!spendingLimit.value) return 0
+  return Math.round((totalExpense.value / spendingLimit.value) * 100)
+})
+
+const limitWarning = computed<'exceeded' | 'approaching' | null>(() => {
+  if (!spendingLimit.value) return null
+  const ratio = totalExpense.value / spendingLimit.value
+  if (ratio >= 1) return 'exceeded'
+  if (ratio >= 0.8) return 'approaching'
+  return null
+})
+
+const progressWidth = computed(() => {
+  if (spendingLimit.value) return Math.min(100, expenseLimitRatio.value)
+  return Math.min(100, expenseRatio.value)
+})
+
 const progressGradient = computed(() => {
-  const r = Math.min(100, expenseRatio.value)
+  const r = progressWidth.value
   if (r <= 50) return 'linear-gradient(90deg, #10b981, #10b981)'
   if (r <= 75) return 'linear-gradient(90deg, #10b981, #f59e0b)'
   return 'linear-gradient(90deg, #10b981, #f59e0b, #ef4444)'
