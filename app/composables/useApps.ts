@@ -96,17 +96,34 @@ export const useApps = () => {
     folders.value = data || []
   }
 
-  const createFolder = async (name: string) => {
+  const createFolder = async (name: string, parentId?: string | null) => {
     const userId = await getUserId()
     if (!userId) return null
     const maxOrder = folders.value.reduce((max: number, f: any) => Math.max(max, f.sort_order ?? 0), 0)
+    const insert: Record<string, any> = { user_id: userId, name, sort_order: maxOrder + 1 }
+    if (parentId) insert.parent_id = parentId
     const { data, error } = await client
       .from('app_folders')
-      .insert({ user_id: userId, name, sort_order: maxOrder + 1 })
+      .insert(insert)
       .select()
       .single()
     if (error) { console.error('Failed to create folder:', error); return null }
     if (data) folders.value.push(data)
+    return data
+  }
+
+  const updateFolder = async (id: string, payload: { name?: string; parent_id?: string | null }) => {
+    const { data, error } = await client
+      .from('app_folders')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) { console.error('Failed to update folder:', error); return null }
+    if (data) {
+      const idx = folders.value.findIndex((f: any) => f.id === id)
+      if (idx !== -1) folders.value[idx] = data
+    }
     return data
   }
 
@@ -187,7 +204,7 @@ export const useApps = () => {
   return {
     apps, folders, loading,
     fetchApps, createApp, updateApp, deleteApp,
-    fetchFolders, createFolder, renameFolder, deleteFolder,
+    fetchFolders, createFolder, updateFolder, renameFolder, deleteFolder,
     createShareLink, revokeShareLink, fetchSharedApp,
   }
 }

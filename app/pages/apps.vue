@@ -1,303 +1,130 @@
 <template>
-  <div class="py-4 sm:py-6">
-    <div class="flex items-center justify-between mb-4 sm:mb-6">
-      <h2 class="font-serif text-2xl sm:text-3xl text-vault-text">Apps</h2>
-      <div class="flex items-center gap-2">
-        <button
-          @click="showNewFolder = true"
-          class="text-vault-muted hover:text-vault-accent text-xs px-3 py-2 border border-vault-border rounded-lg hover:bg-vault-card transition-colors"
-        >
-          + Folder
-        </button>
-        <button
-          @click="openEditor(null)"
-          class="bg-vault-accent text-vault-bg px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold hover:bg-vault-accent-dim transition-colors"
-        >
-          + New App
-        </button>
-      </div>
-    </div>
-
-    <!-- Search -->
-    <div class="relative mb-3 sm:mb-4">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-      </svg>
-      <input
-        v-model="searchQuery"
-        placeholder="Cari apps..."
-        class="w-full bg-vault-card border border-vault-border rounded-xl pl-10 pr-8 py-2.5 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
-      />
-      <button
-        v-if="searchQuery"
-        @click="searchQuery = ''"
-        class="absolute right-3 top-1/2 -translate-y-1/2 text-vault-muted hover:text-vault-text transition-colors"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+  <FileExplorer
+    ref="explorerRef"
+    root-label="Apps"
+    new-item-label="+ New App"
+    search-placeholder="Cari apps..."
+    empty-icon="⚡"
+    empty-text="Belum ada app. Buat app pertamamu!"
+    item-type-label="App"
+    :folders="appFolders"
+    :items="apps"
+    :loading="loading"
+    @create-folder="handleCreateFolder"
+    @new-item="openEditor(null, $event)"
+    @open-item="openRunner"
+    @rename-folder="handleRenameFolder"
+    @delete-folder="handleDeleteFolder"
+    @move-item="handleMoveItem"
+    @move-folder="handleMoveFolder"
+  >
+    <!-- Grid icon for apps -->
+    <template #item-icon="{ item }">
+      <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-vault-accent/10 flex items-center justify-center mb-1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-vault-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
         </svg>
+        <span v-if="item.share_token" class="absolute -top-0.5 -right-0.5 text-[10px]">🔗</span>
+      </div>
+    </template>
+
+    <!-- List icon for apps -->
+    <template #list-icon="{ item }">
+      <div class="relative">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-vault-accent/60 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+        </svg>
+      </div>
+    </template>
+
+    <!-- Context menu for app items -->
+    <template #context-menu="{ item, close }">
+      <button @click="close(); openRunner(item)" class="w-full px-3 py-2 text-left text-sm text-vault-text hover:bg-vault-bg transition-colors flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-vault-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" /></svg>
+        Run
       </button>
-    </div>
+      <button @click="close(); openEditor(item)" class="w-full px-3 py-2 text-left text-sm text-vault-text hover:bg-vault-bg transition-colors flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-vault-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /></svg>
+        Edit
+      </button>
+      <button @click="close(); openShareModal(item)" class="w-full px-3 py-2 text-left text-sm text-vault-text hover:bg-vault-bg transition-colors flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-vault-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.935-2.186 2.25 2.25 0 0 0-3.935 2.186Z" /></svg>
+        Share
+      </button>
+      <button @click="close(); handleDelete(item)" class="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+        Delete
+      </button>
+    </template>
+  </FileExplorer>
 
-    <!-- Loading -->
-    <div v-if="loading" class="flex justify-center py-16">
-      <div class="w-6 h-6 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" />
-    </div>
-
-    <!-- Empty state -->
-    <div v-else-if="allAppsEmpty" class="text-center py-16">
-      <div class="text-4xl mb-3">⚡</div>
-      <p class="text-vault-muted text-sm">
-        {{ searchQuery ? 'Tidak ada app yang cocok' : 'Belum ada app. Buat app pertamamu!' }}
-      </p>
-    </div>
-
-    <!-- Folder sections + Uncategorized -->
-    <div v-else class="space-y-5">
-
-      <!-- Each folder -->
-      <div
-        v-for="folder in foldersWithApps"
-        :key="folder.id"
-        @dragover.prevent="onDragOverFolder($event, folder.id)"
-        @dragleave="onDragLeaveFolder(folder.id)"
-        @drop.prevent="onDropFolder($event, folder.id)"
-        :class="{ 'ring-2 ring-vault-accent/40 rounded-xl bg-vault-accent/5': dragOverFolderId === folder.id }"
-        class="transition-all p-2 -m-2"
-      >
-        <div class="flex items-center gap-2 mb-2 group/folder">
-          <button @click="toggleFolder(folder.id)" class="flex items-center gap-1.5 text-xs font-semibold text-vault-muted uppercase tracking-wider hover:text-vault-text transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform" :class="{ '-rotate-90': collapsedFolders[folder.id] }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
-            {{ folder.name }}
-            <span class="text-vault-muted/50 font-normal normal-case">({{ folder.apps.length }})</span>
-          </button>
-          <div class="flex items-center gap-1 opacity-0 group-hover/folder:opacity-100 transition-opacity">
-            <button @click="startRenameFolder(folder)" class="p-1 rounded text-vault-muted hover:text-vault-accent transition-colors" title="Rename">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /></svg>
-            </button>
-            <button @click="handleDeleteFolder(folder)" class="p-1 rounded text-vault-muted hover:text-red-400 transition-colors" title="Delete folder">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-            </button>
+  <!-- Editor Modal -->
+  <Teleport to="body">
+    <div v-if="showEditor" class="fixed inset-0 z-[100] flex flex-col bg-vault-bg">
+      <div class="flex items-center justify-between px-4 h-14 border-b border-vault-border shrink-0">
+        <button @click="showEditor = false" class="text-vault-muted hover:text-vault-text transition-colors text-sm">Batal</button>
+        <h3 class="font-serif text-lg text-vault-text">{{ editingApp ? 'Edit App' : 'New App' }}</h3>
+        <button @click="handleSave" :disabled="!editorName.trim() || !editorHtml.trim() || saving" class="text-vault-accent font-semibold text-sm disabled:opacity-50">
+          {{ saving ? 'Saving...' : 'Simpan' }}
+        </button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-4 space-y-3">
+        <input v-model="editorName" placeholder="Nama app" class="w-full bg-vault-card border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors" />
+        <input v-model="editorDesc" placeholder="Deskripsi (opsional)" class="w-full bg-vault-card border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors" />
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-vault-muted font-medium mb-1.5 block">Project</label>
+            <select v-model="editorProjectId" class="w-full bg-vault-card border border-vault-border rounded-xl px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors">
+              <option :value="null">— Tidak ada —</option>
+              <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.icon || '📁' }} {{ p.name }}</option>
+            </select>
           </div>
         </div>
-        <div v-if="!collapsedFolders[folder.id]" class="grid gap-3 sm:grid-cols-2">
-          <AppCard
-            v-for="app in folder.apps"
-            :key="app.id"
-            :app="app"
-            @run="openRunner(app)"
-            @edit="openEditor(app)"
-            @delete="handleDelete(app)"
-            @share="openShareModal(app)"
-            @actions="openActions(app)"
-          />
-        </div>
-        <div v-if="!collapsedFolders[folder.id] && folder.apps.length === 0" class="text-xs text-vault-muted/50 py-3 text-center border border-dashed border-vault-border rounded-xl">
-          Kosong
-        </div>
+        <textarea v-model="editorHtml" placeholder="Paste HTML code di sini..." class="w-full bg-vault-card border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors font-mono resize-none" style="min-height: calc(100vh - 340px)" />
       </div>
+    </div>
 
-      <!-- Uncategorized -->
-      <div
-        v-if="uncategorizedApps.length > 0"
-        @dragover.prevent="onDragOverFolder($event, '__uncategorized')"
-        @dragleave="onDragLeaveFolder('__uncategorized')"
-        @drop.prevent="onDropFolder($event, '__uncategorized')"
-        :class="{ 'ring-2 ring-vault-accent/40 rounded-xl bg-vault-accent/5': dragOverFolderId === '__uncategorized' }"
-        class="transition-all p-2 -m-2"
-      >
-        <div class="flex items-center gap-2 mb-2">
-          <button @click="toggleFolder('__uncategorized')" class="flex items-center gap-1.5 text-xs font-semibold text-vault-muted uppercase tracking-wider hover:text-vault-text transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform" :class="{ '-rotate-90': collapsedFolders['__uncategorized'] }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
-            Uncategorized
-            <span class="text-vault-muted/50 font-normal normal-case">({{ uncategorizedApps.length }})</span>
-          </button>
+    <!-- Fullscreen runner -->
+    <div v-if="showRunner" class="fixed inset-0 z-[100] flex flex-col bg-vault-bg">
+      <div class="flex items-center justify-between px-4 h-12 border-b border-vault-border shrink-0 bg-vault-bg/95 backdrop-blur-sm">
+        <h3 class="text-sm font-semibold text-vault-text truncate mr-4">{{ runnerApp?.name }}</h3>
+        <button @click="showRunner = false" class="text-vault-muted hover:text-vault-text transition-colors p-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+      <iframe v-if="runnerApp" :srcdoc="runnerApp.html" class="flex-1 w-full border-0 bg-white" sandbox="allow-scripts allow-same-origin allow-modals allow-forms allow-popups" />
+    </div>
+
+    <!-- Share Modal -->
+    <div v-if="showShareModal" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+      <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showShareModal = false" />
+      <div class="relative bg-vault-card border border-vault-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md p-6">
+        <h3 class="font-serif text-lg text-vault-text mb-4">Share "{{ shareTarget?.name }}"</h3>
+        <div v-if="shareTarget?.share_token" class="space-y-3">
+          <div class="flex items-center gap-2">
+            <input :value="shareUrl" readonly class="flex-1 bg-vault-bg border border-vault-border rounded-lg px-3 py-2.5 text-sm text-vault-text font-mono truncate" @click="($event.target as HTMLInputElement)?.select()" />
+            <button @click="copyShareUrl" class="bg-vault-accent text-vault-bg px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-vault-accent-dim transition-colors shrink-0">Copy</button>
+          </div>
+          <p class="text-[11px] text-vault-muted">Siapapun dengan link ini bisa melihat & menjalankan app.</p>
+          <button @click="handleRevokeShare" class="w-full py-2.5 text-sm text-red-400 border border-red-400/20 rounded-xl hover:bg-red-500/10 transition-colors">Revoke Link</button>
         </div>
-        <div v-if="!collapsedFolders['__uncategorized']" class="grid gap-3 sm:grid-cols-2">
-          <AppCard
-            v-for="app in uncategorizedApps"
-            :key="app.id"
-            :app="app"
-            @run="openRunner(app)"
-            @edit="openEditor(app)"
-            @delete="handleDelete(app)"
-            @share="openShareModal(app)"
-            @actions="openActions(app)"
-          />
+        <div v-else class="space-y-3">
+          <p class="text-sm text-vault-muted">Buat share link agar orang lain bisa melihat & menjalankan app ini (read-only).</p>
+          <button @click="handleCreateShare" :disabled="shareLoading" class="w-full py-2.5 text-sm font-semibold bg-vault-accent text-vault-bg rounded-xl hover:bg-vault-accent-dim transition-colors disabled:opacity-50">
+            {{ shareLoading ? 'Generating...' : 'Generate Share Link' }}
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Editor Modal -->
-    <Teleport to="body">
-      <div v-if="showEditor" class="fixed inset-0 z-[100] flex flex-col bg-vault-bg">
-        <!-- Editor header -->
-        <div class="flex items-center justify-between px-4 h-14 border-b border-vault-border shrink-0">
-          <button @click="showEditor = false" class="text-vault-muted hover:text-vault-text transition-colors text-sm">
-            Batal
-          </button>
-          <h3 class="font-serif text-lg text-vault-text">{{ editingApp ? 'Edit App' : 'New App' }}</h3>
-          <button
-            @click="handleSave"
-            :disabled="!editorName.trim() || !editorHtml.trim() || saving"
-            class="text-vault-accent font-semibold text-sm disabled:opacity-50"
-          >
-            {{ saving ? 'Saving...' : 'Simpan' }}
-          </button>
-        </div>
-
-        <!-- Editor body -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-3">
-          <input
-            v-model="editorName"
-            placeholder="Nama app"
-            class="w-full bg-vault-card border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
-          />
-          <input
-            v-model="editorDesc"
-            placeholder="Deskripsi (opsional)"
-            class="w-full bg-vault-card border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
-          />
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs text-vault-muted font-medium flex items-center gap-1.5 mb-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
-                Folder
-              </label>
-              <select v-model="editorFolderId" class="w-full bg-vault-card border border-vault-border rounded-xl px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors">
-                <option :value="null">— Tidak ada —</option>
-                <option v-for="f in appFolders" :key="f.id" :value="f.id">{{ f.name }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-xs text-vault-muted font-medium flex items-center gap-1.5 mb-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
-                Project
-              </label>
-              <select v-model="editorProjectId" class="w-full bg-vault-card border border-vault-border rounded-xl px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors">
-                <option :value="null">— Tidak ada —</option>
-                <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.icon || '📁' }} {{ p.name }}</option>
-              </select>
-            </div>
-          </div>
-          <textarea
-            v-model="editorHtml"
-            placeholder="Paste HTML code di sini..."
-            class="w-full bg-vault-card border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors font-mono resize-none"
-            style="min-height: calc(100vh - 380px)"
-          />
-        </div>
+    <!-- Saving overlay -->
+    <div v-if="saving" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div class="flex flex-col items-center gap-3">
+        <div class="w-8 h-8 border-3 border-vault-accent border-t-transparent rounded-full animate-spin" />
+        <p class="text-sm text-vault-text font-medium">{{ savingText }}</p>
       </div>
-
-      <!-- Fullscreen runner -->
-      <div v-if="showRunner" class="fixed inset-0 z-[100] flex flex-col bg-vault-bg">
-        <div class="flex items-center justify-between px-4 h-12 border-b border-vault-border shrink-0 bg-vault-bg/95 backdrop-blur-sm">
-          <h3 class="text-sm font-semibold text-vault-text truncate mr-4">{{ runnerApp?.name }}</h3>
-          <button
-            @click="showRunner = false"
-            class="text-vault-muted hover:text-vault-text transition-colors p-1"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <iframe
-          v-if="runnerApp"
-          :srcdoc="runnerApp.html"
-          class="flex-1 w-full border-0 bg-white"
-          sandbox="allow-scripts allow-same-origin allow-modals allow-forms allow-popups"
-        />
-      </div>
-
-      <!-- Share Modal -->
-      <div v-if="showShareModal" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showShareModal = false" />
-        <div class="relative bg-vault-card border border-vault-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md p-6">
-          <h3 class="font-serif text-lg text-vault-text mb-4">Share "{{ shareTarget?.name }}"</h3>
-
-          <div v-if="shareTarget?.share_token" class="space-y-3">
-            <div class="flex items-center gap-2">
-              <input
-                :value="shareUrl"
-                readonly
-                class="flex-1 bg-vault-bg border border-vault-border rounded-lg px-3 py-2.5 text-sm text-vault-text font-mono truncate"
-                @click="($event.target as HTMLInputElement)?.select()"
-              />
-              <button @click="copyShareUrl" class="bg-vault-accent text-vault-bg px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-vault-accent-dim transition-colors shrink-0">
-                Copy
-              </button>
-            </div>
-            <p class="text-[11px] text-vault-muted">Siapapun dengan link ini bisa melihat & menjalankan app.</p>
-            <button @click="handleRevokeShare" class="w-full py-2.5 text-sm text-red-400 border border-red-400/20 rounded-xl hover:bg-red-500/10 transition-colors">
-              Revoke Link
-            </button>
-          </div>
-
-          <div v-else class="space-y-3">
-            <p class="text-sm text-vault-muted">Buat share link agar orang lain bisa melihat & menjalankan app ini (read-only).</p>
-            <button @click="handleCreateShare" :disabled="shareLoading" class="w-full py-2.5 text-sm font-semibold bg-vault-accent text-vault-bg rounded-xl hover:bg-vault-accent-dim transition-colors disabled:opacity-50">
-              {{ shareLoading ? 'Generating...' : 'Generate Share Link' }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- New Folder Modal -->
-      <div v-if="showNewFolder" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showNewFolder = false" />
-        <div class="relative bg-vault-card border border-vault-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-          <h3 class="font-serif text-lg text-vault-text mb-4">New Folder</h3>
-          <input
-            ref="newFolderInput"
-            v-model="newFolderName"
-            placeholder="Nama folder"
-            class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors mb-4"
-            @keydown.enter="handleCreateFolder"
-          />
-          <div class="flex gap-3">
-            <button @click="showNewFolder = false" class="flex-1 py-2.5 text-sm text-vault-muted border border-vault-border rounded-xl hover:bg-vault-bg transition-colors">Batal</button>
-            <button @click="handleCreateFolder" :disabled="!newFolderName.trim()" class="flex-1 py-2.5 text-sm font-semibold bg-vault-accent text-vault-bg rounded-xl hover:bg-vault-accent-dim transition-colors disabled:opacity-30">Buat</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Rename Folder Modal -->
-      <div v-if="showRenameFolder" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showRenameFolder = false" />
-        <div class="relative bg-vault-card border border-vault-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-          <h3 class="font-serif text-lg text-vault-text mb-4">Rename Folder</h3>
-          <input
-            ref="renameFolderInput"
-            v-model="renameFolderName"
-            class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors mb-4"
-            @keydown.enter="handleRenameFolder"
-          />
-          <div class="flex gap-3">
-            <button @click="showRenameFolder = false" class="flex-1 py-2.5 text-sm text-vault-muted border border-vault-border rounded-xl hover:bg-vault-bg transition-colors">Batal</button>
-            <button @click="handleRenameFolder" :disabled="!renameFolderName.trim()" class="flex-1 py-2.5 text-sm font-semibold bg-vault-accent text-vault-bg rounded-xl hover:bg-vault-accent-dim transition-colors disabled:opacity-30">Simpan</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Saving overlay -->
-      <div v-if="saving" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div class="flex flex-col items-center gap-3">
-          <div class="w-8 h-8 border-3 border-vault-accent border-t-transparent rounded-full animate-spin" />
-          <p class="text-sm text-vault-text font-medium">{{ savingText }}</p>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- Mobile action sheet -->
-    <ActionSheet
-      v-if="showActions"
-      :actions="appActionItems"
-      @close="showActions = false"
-      @select="handleActionSelect"
-    />
-  </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -307,13 +134,13 @@ const user = useSupabaseUser()
 const {
   apps, folders: appFolders, loading,
   fetchApps, createApp, updateApp, deleteApp,
-  fetchFolders, createFolder, renameFolder, deleteFolder,
+  fetchFolders, createFolder, updateFolder, renameFolder, deleteFolder,
   createShareLink, revokeShareLink,
 } = useApps()
 const { projects: projectList, fetchProjects } = useProjects()
 const { show: showToast } = useToast()
 
-const searchQuery = ref('')
+const explorerRef = ref<any>(null)
 const saving = ref(false)
 const savingText = ref('')
 
@@ -324,59 +151,15 @@ const editorName = ref('')
 const editorDesc = ref('')
 const editorHtml = ref('')
 const editorProjectId = ref<string | null>(null)
-const editorFolderId = ref<string | null>(null)
 
 // Runner state
 const showRunner = ref(false)
 const runnerApp = ref<any>(null)
 
-// Folders
-const collapsedFolders = ref<Record<string, boolean>>({})
-const showNewFolder = ref(false)
-const newFolderName = ref('')
-const newFolderInput = ref<HTMLInputElement | null>(null)
-const showRenameFolder = ref(false)
-const renameFolderName = ref('')
-const renameFolderTarget = ref<any>(null)
-const renameFolderInput = ref<HTMLInputElement | null>(null)
-
 // Share
 const showShareModal = ref(false)
 const shareTarget = ref<any>(null)
 const shareLoading = ref(false)
-
-// Mobile actions
-const showActions = ref(false)
-const actionTarget = ref<any>(null)
-
-const appActionItems = [
-  { id: 'run', label: 'Jalankan App', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-vault-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" /></svg>' },
-  { id: 'edit', label: 'Edit App', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-vault-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /></svg>' },
-  { id: 'share', label: 'Share Link', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-vault-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.935-2.186 2.25 2.25 0 0 0-3.935 2.186Z" /></svg>' },
-  { id: 'delete', label: 'Hapus App', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>', destructive: true },
-]
-
-// ── Computed ─────────────────────────────────────────────────────────────
-
-const filteredApps = computed(() => {
-  if (!searchQuery.value.trim()) return apps.value
-  const q = searchQuery.value.toLowerCase()
-  return apps.value.filter((a: any) =>
-    (a.name || '').toLowerCase().includes(q) ||
-    (a.description || '').toLowerCase().includes(q)
-  )
-})
-
-const foldersWithApps = computed(() => {
-  return appFolders.value.map((f: any) => ({
-    ...f,
-    apps: filteredApps.value.filter((a: any) => a.folder_id === f.id),
-  }))
-})
-
-const uncategorizedApps = computed(() => filteredApps.value.filter((a: any) => !a.folder_id))
-
-const allAppsEmpty = computed(() => filteredApps.value.length === 0)
 
 const shareUrl = computed(() => {
   if (!shareTarget.value?.share_token) return ''
@@ -384,15 +167,45 @@ const shareUrl = computed(() => {
   return `${origin}/share/${shareTarget.value.share_token}`
 })
 
-// ── Editor ───────────────────────────────────────────────────────────────
+// ── Explorer event handlers ─────────────────────────────────────────────
 
-const openEditor = (app: any) => {
+const handleCreateFolder = async (name: string, parentId: string | null) => {
+  await createFolder(name, parentId)
+  showToast('Folder dibuat!')
+}
+
+const handleRenameFolder = async (id: string, name: string) => {
+  await renameFolder(id, name)
+  showToast('Folder direname!')
+}
+
+const handleDeleteFolder = async (id: string) => {
+  await deleteFolder(id)
+  showToast('Folder dihapus')
+}
+
+const handleMoveItem = async (itemId: string, folderId: string | null) => {
+  try {
+    await updateApp(itemId, { folder_id: folderId })
+    showToast('App dipindahkan!')
+  } catch { showToast('Gagal memindahkan app') }
+}
+
+const handleMoveFolder = async (folderId: string, parentId: string | null) => {
+  try {
+    await updateFolder(folderId, { parent_id: parentId })
+    showToast('Folder dipindahkan!')
+  } catch { showToast('Gagal memindahkan folder') }
+}
+
+// ── Editor ──────────────────────────────────────────────────────────────
+
+const openEditor = (app: any, folderId?: string | null) => {
   editingApp.value = app
   editorName.value = app?.name || ''
   editorDesc.value = app?.description || ''
   editorHtml.value = app?.html || ''
   editorProjectId.value = app?.project_id || null
-  editorFolderId.value = app?.folder_id || null
   showEditor.value = true
   if (!projectList.value.length) fetchProjects()
 }
@@ -407,13 +220,13 @@ const handleSave = async () => {
   saving.value = true
   savingText.value = 'Menyimpan...'
   try {
+    const currentFolderId = explorerRef.value?.currentFolderId ?? null
     if (editingApp.value) {
       await updateApp(editingApp.value.id, {
         name: editorName.value.trim(),
         description: editorDesc.value.trim() || undefined,
         html: editorHtml.value,
         project_id: editorProjectId.value,
-        folder_id: editorFolderId.value,
       })
       showToast('App diperbarui!')
     } else {
@@ -422,7 +235,7 @@ const handleSave = async () => {
         description: editorDesc.value.trim() || undefined,
         html: editorHtml.value,
         project_id: editorProjectId.value,
-        folder_id: editorFolderId.value,
+        folder_id: currentFolderId,
       })
       showToast('App disimpan!')
     }
@@ -448,68 +261,7 @@ const handleDelete = async (app: any) => {
   }
 }
 
-// ── Folder actions ───────────────────────────────────────────────────────
-
-const toggleFolder = (id: string) => {
-  collapsedFolders.value[id] = !collapsedFolders.value[id]
-}
-
-// ── Drag & Drop ──────────────────────────────────────────────────────────
-
-const dragOverFolderId = ref<string | null>(null)
-
-const onDragOverFolder = (e: DragEvent, folderId: string) => {
-  if (e.dataTransfer?.types.includes('application/x-app-id')) {
-    dragOverFolderId.value = folderId
-  }
-}
-
-const onDragLeaveFolder = (folderId: string) => {
-  if (dragOverFolderId.value === folderId) dragOverFolderId.value = null
-}
-
-const onDropFolder = async (e: DragEvent, folderId: string) => {
-  dragOverFolderId.value = null
-  const appId = e.dataTransfer?.getData('application/x-app-id')
-  if (!appId) return
-  const targetFolderId = folderId === '__uncategorized' ? null : folderId
-  try {
-    await updateApp(appId, { folder_id: targetFolderId })
-    showToast('App dipindahkan!')
-  } catch {
-    showToast('Gagal memindahkan app')
-  }
-}
-
-const handleCreateFolder = async () => {
-  if (!newFolderName.value.trim()) return
-  await createFolder(newFolderName.value.trim())
-  newFolderName.value = ''
-  showNewFolder.value = false
-  showToast('Folder dibuat!')
-}
-
-const startRenameFolder = (folder: any) => {
-  renameFolderTarget.value = folder
-  renameFolderName.value = folder.name
-  showRenameFolder.value = true
-  nextTick(() => renameFolderInput.value?.focus())
-}
-
-const handleRenameFolder = async () => {
-  if (!renameFolderName.value.trim() || !renameFolderTarget.value) return
-  await renameFolder(renameFolderTarget.value.id, renameFolderName.value.trim())
-  showRenameFolder.value = false
-  showToast('Folder direname!')
-}
-
-const handleDeleteFolder = async (folder: any) => {
-  if (!confirm(`Hapus folder "${folder.name}"? Apps di dalamnya akan jadi Uncategorized.`)) return
-  await deleteFolder(folder.id)
-  showToast('Folder dihapus')
-}
-
-// ── Share actions ────────────────────────────────────────────────────────
+// ── Share ────────────────────────────────────────────────────────────────
 
 const openShareModal = (app: any) => {
   shareTarget.value = app
@@ -529,7 +281,7 @@ const handleCreateShare = async () => {
 }
 
 const handleRevokeShare = async () => {
-  if (!shareTarget.value || !confirm('Revoke share link? Link lama tidak akan bisa diakses lagi.')) return
+  if (!shareTarget.value || !confirm('Revoke share link?')) return
   shareLoading.value = true
   try {
     await revokeShareLink(shareTarget.value.id)
@@ -543,28 +295,7 @@ const copyShareUrl = () => {
   showToast('Link di-copy!')
 }
 
-// ── Mobile actions ───────────────────────────────────────────────────────
-
-const openActions = (app: any) => {
-  actionTarget.value = app
-  showActions.value = true
-}
-
-const handleActionSelect = (id: string) => {
-  showActions.value = false
-  const app = actionTarget.value
-  if (!app) return
-  if (id === 'run') openRunner(app)
-  else if (id === 'edit') openEditor(app)
-  else if (id === 'share') openShareModal(app)
-  else if (id === 'delete') handleDelete(app)
-}
-
-// ── Watchers ─────────────────────────────────────────────────────────────
-
-watch(showNewFolder, (v) => {
-  if (v) nextTick(() => newFolderInput.value?.focus())
-})
+// ── Init ────────────────────────────────────────────────────────────────
 
 watch(user, (u) => {
   if (u) {

@@ -141,17 +141,34 @@ export const useLinks = () => {
     folders.value = data || []
   }
 
-  const createLinkFolder = async (name: string) => {
+  const createLinkFolder = async (name: string, parentId?: string | null) => {
     const userId = await getUserId()
     if (!userId) return null
     const maxOrder = folders.value.reduce((max: number, f: any) => Math.max(max, f.sort_order ?? 0), 0)
+    const insert: Record<string, any> = { user_id: userId, name, sort_order: maxOrder + 1 }
+    if (parentId) insert.parent_id = parentId
     const { data, error } = await client
       .from('link_folders')
-      .insert({ user_id: userId, name, sort_order: maxOrder + 1 })
+      .insert(insert)
       .select()
       .single()
     if (error) { console.error('Failed to create link folder:', error); return null }
     if (data) folders.value.push(data)
+    return data
+  }
+
+  const updateLinkFolder = async (id: string, payload: { name?: string; parent_id?: string | null }) => {
+    const { data, error } = await client
+      .from('link_folders')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) { console.error('Failed to update link folder:', error); return null }
+    if (data) {
+      const idx = folders.value.findIndex((f: any) => f.id === id)
+      if (idx !== -1) folders.value[idx] = data
+    }
     return data
   }
 
@@ -180,6 +197,6 @@ export const useLinks = () => {
   return {
     links, folders, loading,
     fetchLinks, addLink, updateLink, deleteLink, refreshMetadata,
-    fetchLinkFolders, createLinkFolder, renameLinkFolder, deleteLinkFolder,
+    fetchLinkFolders, createLinkFolder, updateLinkFolder, renameLinkFolder, deleteLinkFolder,
   }
 }
