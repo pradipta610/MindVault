@@ -208,6 +208,20 @@
               <p class="text-[10px] text-vault-muted uppercase tracking-wider mb-1.5">Catatan <span class="normal-case font-normal">(opsional)</span></p>
               <input v-model="formNote" placeholder="Contoh: Makan siang sama temen..." class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-2.5 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors" />
             </div>
+            <!-- Voice input -->
+            <div v-if="speechSupported" class="flex items-center gap-2">
+              <button
+                @click.prevent="speechActive ? voiceStopAndApply() : speechStart()"
+                class="p-2 rounded-full border transition-all shrink-0"
+                :class="speechActive ? 'bg-red-500/20 border-red-500/40 text-red-400 animate-pulse' : 'border-vault-border text-vault-muted hover:text-vault-accent hover:border-vault-accent/30'"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+                </svg>
+              </button>
+              <p v-if="speechActive" class="text-xs text-red-400 flex-1 min-w-0 truncate">{{ speechFull || 'Mendengarkan...' }}</p>
+              <p v-else class="text-[11px] text-vault-muted flex-1">"makan siang 35rb" atau "gaji 5 juta"</p>
+            </div>
             <!-- Date -->
             <div>
               <p class="text-[10px] text-vault-muted uppercase tracking-wider mb-1.5">Tanggal</p>
@@ -338,6 +352,18 @@ const formNote = ref('')
 const formDate = ref('')
 const saving = ref(false)
 const amountInput = ref<HTMLInputElement | null>(null)
+
+const { isSupported: speechSupported, isListening: speechActive, fullTranscript: speechFull, start: speechStart, stop: speechStop } = useSpeechRecognition()
+
+const voiceStopAndApply = () => {
+  speechStop()
+  if (speechFull.value) {
+    const parsed = parseFinanceVoice(speechFull.value)
+    if (parsed.amount) formAmount.value = String(parsed.amount)
+    if (parsed.type) formType.value = parsed.type
+    if (parsed.description) formNote.value = parsed.description
+  }
+}
 
 const activeCategories = computed(() => formType.value === 'expense' ? expenseCategories : incomeCategories)
 

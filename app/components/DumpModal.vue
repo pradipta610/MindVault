@@ -41,6 +41,21 @@
           :on-image-upload="handleImageUpload"
         />
 
+        <!-- Voice input -->
+        <div v-if="speechSupported" class="flex items-center gap-2">
+          <button
+            @click.prevent="speechActive ? speechStopAndApply() : speechStart()"
+            class="p-2 rounded-full border transition-all shrink-0"
+            :class="speechActive ? 'bg-red-500/20 border-red-500/40 text-red-400 animate-pulse' : 'border-vault-border text-vault-muted hover:text-vault-accent hover:border-vault-accent/30'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+            </svg>
+          </button>
+          <p v-if="speechActive" class="text-xs text-red-400 flex-1 min-w-0 truncate">{{ speechFull || 'Mendengarkan...' }}</p>
+          <p v-else class="text-[11px] text-vault-muted flex-1">Tekan mic untuk bicara</p>
+        </div>
+
         <!-- Reminder datetime -->
         <div class="border-t border-vault-border pt-4">
           <div class="flex items-center justify-between mb-2">
@@ -153,6 +168,7 @@ const emit = defineEmits(['close', 'save', 'process'])
 const { categoryNames, getCategoryColor, getCategoryIcon } = useCategories()
 const { uploadInlineImage } = useNoteImages()
 const { projects, fetchProjects } = useProjects()
+const { isSupported: speechSupported, isListening: speechActive, fullTranscript: speechFull, start: speechStart, stop: speechStop, toggle: speechToggle } = useSpeechRecognition()
 const tags = categoryNames
 const rawText = ref(props.note?.raw || props.initialRaw || '')
 const selectedTag = ref(props.note?.tag || props.initialTag || categoryNames.value[0] || '')
@@ -168,6 +184,14 @@ const toLocalInput = (iso: string | null | undefined): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 const reminderAt = ref(toLocalInput(props.note?.reminder_at))
+
+const speechStopAndApply = () => {
+  speechStop()
+  if (speechFull.value) {
+    const current = rawText.value.replace(/<[^>]*>/g, '').trim()
+    rawText.value = current ? rawText.value + '<p>' + speechFull.value + '</p>' : '<p>' + speechFull.value + '</p>'
+  }
+}
 
 const { anthropicKey } = useSettings()
 const hasApiKey = computed(() => !!anthropicKey.value)

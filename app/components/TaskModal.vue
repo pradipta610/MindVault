@@ -67,6 +67,21 @@
         <!-- Rich text editor -->
         <TiptapEditor v-model="rawText" placeholder="Isi task..." />
 
+        <!-- Voice input -->
+        <div v-if="speechSupported" class="flex items-center gap-2">
+          <button
+            @click.prevent="speechActive ? voiceStopAndApply() : speechStart()"
+            class="p-2 rounded-full border transition-all shrink-0"
+            :class="speechActive ? 'bg-red-500/20 border-red-500/40 text-red-400 animate-pulse' : 'border-vault-border text-vault-muted hover:text-vault-accent hover:border-vault-accent/30'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+            </svg>
+          </button>
+          <p v-if="speechActive" class="text-xs text-red-400 flex-1 min-w-0 truncate">{{ speechFull || 'Mendengarkan...' }}</p>
+          <p v-else class="text-[11px] text-vault-muted flex-1">Bicara: "beli kopi besok racc"</p>
+        </div>
+
         <!-- Date section -->
         <div>
           <label class="block text-xs text-vault-muted mb-2">Tanggal</label>
@@ -145,7 +160,18 @@ const props = defineProps<{
 const emit = defineEmits(['close', 'save'])
 
 const { categoryNames, getCategoryColor, getCategoryIcon } = useCategories()
+const { isSupported: speechSupported, isListening: speechActive, fullTranscript: speechFull, start: speechStart, stop: speechStop } = useSpeechRecognition()
 const tags = categoryNames
+
+const voiceStopAndApply = () => {
+  speechStop()
+  if (speechFull.value) {
+    const parsed = parseTaskVoice(speechFull.value, categoryNames.value)
+    if (parsed.title) rawText.value = parsed.title
+    if (parsed.date) selectedDate.value = parsed.date
+    if (parsed.category) selectedCat.value = parsed.category
+  }
+}
 
 const todayStr = new Date().toISOString().split('T')[0]
 const tomorrow = new Date()
