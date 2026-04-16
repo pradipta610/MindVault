@@ -58,36 +58,44 @@
     <template v-else>
       <!-- Summary Card -->
       <div class="bg-vault-card border border-vault-border rounded-2xl p-5 mb-5">
-        <div class="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <p class="text-[10px] text-vault-muted uppercase tracking-wider mb-1">Pemasukan</p>
-            <p class="font-serif text-xl text-vault-positive">{{ formatIDR(totalIncome) }}</p>
+        <!-- Top: Big saldo -->
+        <div class="text-center mb-4">
+          <p class="text-[10px] text-vault-muted uppercase tracking-wider mb-1.5">Saldo {{ monthLabel }}</p>
+          <p class="font-medium" :style="{ fontSize: '34px', color: '#f7ce28' }">
+            {{ netBalance >= 0 ? '+' : '-' }}{{ formatIDR(netBalance) }}
+          </p>
+        </div>
+
+        <!-- Middle: Two mini cards -->
+        <div class="flex gap-3 mb-4">
+          <div class="flex-1 rounded-[10px] px-3 py-2.5" style="background-color: #0f1f0f">
+            <div class="flex items-center gap-1.5 mb-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span class="text-[10px] text-vault-muted uppercase tracking-wider">Pemasukan</span>
+            </div>
+            <p class="text-white font-medium text-sm">{{ formatIDR(totalIncome) }}</p>
           </div>
-          <div>
-            <p class="text-[10px] text-vault-muted uppercase tracking-wider mb-1">Pengeluaran</p>
-            <p class="font-serif text-xl text-vault-negative">{{ formatIDR(totalExpense) }}</p>
+          <div class="flex-1 rounded-[10px] px-3 py-2.5" style="background-color: #1f0f0f">
+            <div class="flex items-center gap-1.5 mb-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500" />
+              <span class="text-[10px] text-vault-muted uppercase tracking-wider">Pengeluaran</span>
+            </div>
+            <p class="text-white font-medium text-sm">{{ formatIDR(totalExpense) }}</p>
           </div>
         </div>
-        <div class="border-t border-vault-border pt-4">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-vault-muted">Saldo bulan ini</span>
-            <span class="text-sm font-semibold" :class="netBalance >= 0 ? 'text-vault-positive' : 'text-vault-negative'">
-              {{ netBalance >= 0 ? '+' : '' }}{{ formatIDR(netBalance) }}
-            </span>
+
+        <!-- Bottom: Progress bar -->
+        <div v-if="totalIncome > 0">
+          <div class="h-1 rounded-full overflow-hidden" style="background-color: #2a2a2a">
+            <div
+              class="h-full rounded-full transition-all duration-700"
+              :style="{ width: Math.min(100, expenseRatio) + '%', background: progressGradient }"
+            />
           </div>
-          <div v-if="totalIncome > 0" class="space-y-1">
-            <div class="h-2 bg-vault-border rounded-full overflow-hidden">
-              <div
-                class="h-full rounded-full transition-all duration-700"
-                :class="expenseRatio > 90 ? 'bg-vault-negative' : expenseRatio > 70 ? 'bg-amber-500' : 'bg-vault-positive'"
-                :style="{ width: Math.min(100, expenseRatio) + '%' }"
-              />
-            </div>
-            <p class="text-[10px] text-vault-muted text-right">{{ expenseRatio }}% dari pemasukan terpakai</p>
-          </div>
-          <div v-else-if="totalExpense > 0" class="mt-1">
-            <p class="text-[10px] text-amber-500">Belum ada pemasukan dicatat bulan ini</p>
-          </div>
+          <p class="text-[10px] text-vault-muted text-right mt-1.5">{{ expenseRatio }}% dari pemasukan terpakai</p>
+        </div>
+        <div v-else-if="totalExpense > 0">
+          <p class="text-[10px] text-amber-500">Belum ada pemasukan dicatat bulan ini</p>
         </div>
       </div>
 
@@ -310,6 +318,12 @@ const totalIncome = computed(() => transactions.value.filter(t => t.type === 'in
 const totalExpense = computed(() => transactions.value.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0))
 const netBalance = computed(() => totalIncome.value - totalExpense.value)
 const expenseRatio = computed(() => !totalIncome.value ? 0 : Math.round((totalExpense.value / totalIncome.value) * 100))
+const progressGradient = computed(() => {
+  const r = Math.min(100, expenseRatio.value)
+  if (r <= 50) return 'linear-gradient(90deg, #10b981, #10b981)'
+  if (r <= 75) return 'linear-gradient(90deg, #10b981, #f59e0b)'
+  return 'linear-gradient(90deg, #10b981, #f59e0b, #ef4444)'
+})
 
 const categoryBreakdown = computed(() => {
   const map: Record<string, number> = {}
