@@ -160,6 +160,18 @@
       </Transition>
     </Teleport>
 
+    <!-- Floating search button (non-home pages) -->
+    <button
+      v-if="user && !isLoginPage && route.path !== '/'"
+      @click="searchOpen = true"
+      class="fixed bottom-20 right-4 z-[60] w-11 h-11 rounded-full bg-vault-card border border-vault-border shadow-lg flex items-center justify-center text-vault-muted hover:text-vault-accent hover:border-vault-accent/40 transition-all active:scale-95"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+      </svg>
+    </button>
+
+    <SearchOverlay :open="searchOpen" @close="searchOpen = false" />
     <ToastContainer />
   </div>
 </template>
@@ -171,6 +183,7 @@ const { current, setTheme, initTheme, themePreviewColors } = useTheme()
 
 const mobileThemeOpen = ref(false)
 const moreMenuOpen = ref(false)
+const searchOpen = ref(false)
 
 // Close more menu on route change
 watch(() => route.path, () => {
@@ -187,6 +200,15 @@ const themeList = [
 
 onMounted(() => {
   initTheme()
+  // Global Ctrl+K / Cmd+K
+  const handler = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault()
+      searchOpen.value = true
+    }
+  }
+  window.addEventListener('keydown', handler)
+  onBeforeUnmount(() => window.removeEventListener('keydown', handler))
 })
 
 const isLoginPage = computed(() => route.path === '/login' || route.path === '/confirm')

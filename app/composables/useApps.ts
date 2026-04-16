@@ -150,6 +150,64 @@ export const useApps = () => {
     apps.value = apps.value.map((a: any) => a.folder_id === id ? { ...a, folder_id: null } : a)
   }
 
+  // ── Usage Logs ─────────────────────────────────────────────────────────
+
+  const recentApps = ref<any[]>([])
+
+  const fetchRecentApps = async () => {
+    const userId = await getUserId()
+    if (!userId) return
+    // Get the last 8 distinct app_ids ordered by most recent open
+    const { data, error } = await client
+      .from('app_usage_logs')
+      .select('app_id, opened_at')
+      .eq('user_id', userId)
+      .order('opened_at', { ascending: false })
+      .limit(50)
+    if (error) { console.error('Failed to fetch recent apps:', error); return }
+    // Deduplicate: keep first occurrence (most recent) per app_id
+    const seen = new Set<string>()
+    const uniqueIds: string[] = []
+    for (const row of (data || [])) {
+      if (!seen.has(row.app_id)) {
+        seen.add(row.app_id)
+        uniqueIds.push(row.app_id)
+        if (uniqueIds.length >= 8) break
+      }
+    }
+    if (uniqueIds.length === 0) { recentApps.value = []; return }
+    // Fetch app details
+    const { data: appData, error: appErr } = await client
+      .from('apps')
+      .select('*')
+      .in('id', uniqueIds)
+    if (appErr) { console.error('Failed to fetch recent app details:', appErr); return }
+    // Sort by the order in uniqueIds
+    const appMap = new Map((appData || []).map((a: any) => [a.id, a]))
+    recentApps.value = uniqueIds.map(id => appMap.get(id)).filter(Boolean)
+  }
+
+  const logAppOpen = async (appId: string) => {
+    const userId = await getUserId()
+    if (!userId) return
+    await client.from('app_usage_logs').insert({ user_id: userId, app_id: appId })
+    // Optimistically move to front of recent
+    const existing = recentApps.value.find((a: any) => a.id === appId)
+    if (existing) {
+      recentApps.value = [existing, ...recentApps.value.filter((a: any) => a.id !== appId)].slice(0, 8)
+    } else {
+      const app = apps.value.find((a: any) => a.id === appId)
+      if (app) recentApps.value = [app, ...recentApps.value].slice(0, 8)
+    }
+  }
+
+  const removeFromRecent = async (appId: string) => {
+    const userId = await getUserId()
+    if (!userId) return
+    await client.from('app_usage_logs').delete().eq('user_id', userId).eq('app_id', appId)
+    recentApps.value = recentApps.value.filter((a: any) => a.id !== appId)
+  }
+
   // ── Share Token ─────────────────────────────────────────────────────────
 
   const generateToken = (): string => {
@@ -206,5 +264,6 @@ export const useApps = () => {
     fetchApps, createApp, updateApp, deleteApp,
     fetchFolders, createFolder, updateFolder, renameFolder, deleteFolder,
     createShareLink, revokeShareLink, fetchSharedApp,
+    recentApps, fetchRecentApps, logAppOpen, removeFromRecent,
   }
 }

@@ -1,4 +1,50 @@
 <template>
+  <div>
+
+  <!-- Recently Opened -->
+  <div v-if="recentApps.length > 0" class="mb-5">
+    <p class="text-[10px] font-semibold text-vault-muted uppercase tracking-wider mb-2.5 px-0.5">Recently Opened</p>
+    <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
+      <div
+        v-for="app in recentApps"
+        :key="'recent-' + app.id"
+        class="shrink-0 w-[72px] flex flex-col items-center cursor-pointer group"
+        @click="openRecentApp(app)"
+        @contextmenu.prevent="recentContextApp = app; showRecentContext = true"
+        @touchstart="startLongPress(app)"
+        @touchend="cancelLongPress"
+        @touchmove="cancelLongPress"
+      >
+        <div class="w-14 h-14 rounded-xl bg-vault-accent/10 flex items-center justify-center mb-1.5 group-hover:bg-vault-accent/20 transition-colors group-active:scale-95">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-vault-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+          </svg>
+        </div>
+        <span class="text-[11px] text-vault-text text-center leading-tight line-clamp-2 w-full">{{ app.name }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Long-press context menu -->
+  <Teleport to="body">
+    <div v-if="showRecentContext" class="fixed inset-0 z-[110]" @click="showRecentContext = false">
+      <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-vault-card border border-vault-border rounded-xl shadow-lg overflow-hidden min-w-[180px]">
+        <div class="px-3 py-2 border-b border-vault-border">
+          <p class="text-xs text-vault-text font-medium truncate">{{ recentContextApp?.name }}</p>
+        </div>
+        <button
+          @click="showRecentContext = false; handleRemoveFromRecent(recentContextApp)"
+          class="w-full px-3 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+          Remove from recent
+        </button>
+      </div>
+    </div>
+  </Teleport>
+
   <FileExplorer
     ref="explorerRef"
     root-label="Apps"
@@ -57,6 +103,8 @@
       </button>
     </template>
   </FileExplorer>
+
+  </div>
 
   <!-- Editor Modal -->
   <Teleport to="body">
@@ -136,6 +184,7 @@ const {
   fetchApps, createApp, updateApp, deleteApp,
   fetchFolders, createFolder, updateFolder, renameFolder, deleteFolder,
   createShareLink, revokeShareLink,
+  recentApps, fetchRecentApps, logAppOpen, removeFromRecent,
 } = useApps()
 const { projects: projectList, fetchProjects } = useProjects()
 const { show: showToast } = useToast()
@@ -213,6 +262,35 @@ const openEditor = (app: any, folderId?: string | null) => {
 const openRunner = (app: any) => {
   runnerApp.value = app
   showRunner.value = true
+  logAppOpen(app.id)
+}
+
+// ── Recently Opened ──────────────────────────────────────────────────
+
+const recentContextApp = ref<any>(null)
+const showRecentContext = ref(false)
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+
+const openRecentApp = (app: any) => {
+  if (showRecentContext.value) return
+  openRunner(app)
+}
+
+const startLongPress = (app: any) => {
+  longPressTimer = setTimeout(() => {
+    recentContextApp.value = app
+    showRecentContext.value = true
+  }, 500)
+}
+
+const cancelLongPress = () => {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null }
+}
+
+const handleRemoveFromRecent = async (app: any) => {
+  if (!app) return
+  await removeFromRecent(app.id)
+  showToast('Dihapus dari recent')
 }
 
 const handleSave = async () => {
@@ -301,6 +379,11 @@ watch(user, (u) => {
   if (u) {
     fetchApps()
     fetchFolders()
+    fetchRecentApps()
   }
 }, { immediate: true })
+
+onBeforeUnmount(() => {
+  if (longPressTimer) clearTimeout(longPressTimer)
+})
 </script>
