@@ -12,7 +12,7 @@
       @click="searchOpen = true"
       class="w-full flex items-center gap-3 bg-vault-card border border-vault-border rounded-xl px-4 py-3 mb-5 text-left hover:border-vault-accent/30 transition-colors group"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4.5 h-4.5 text-vault-muted group-hover:text-vault-accent transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-vault-muted group-hover:text-vault-accent transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
       </svg>
       <span class="text-sm text-vault-muted/60 flex-1">Cari di semua data...</span>
