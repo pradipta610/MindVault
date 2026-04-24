@@ -140,7 +140,12 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
         </button>
       </div>
-      <iframe v-if="runnerApp" :srcdoc="runnerApp.html" class="flex-1 w-full border-0 bg-white" sandbox="allow-scripts allow-same-origin allow-modals allow-forms allow-popups" />
+      <iframe
+        v-if="runnerApp && runnerBlobUrl"
+        :src="runnerBlobUrl"
+        class="flex-1 w-full border-0 bg-white"
+        sandbox="allow-scripts allow-modals allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin"
+      />
     </div>
 
     <!-- Share Modal -->
@@ -204,6 +209,16 @@ const editorProjectId = ref<string | null>(null)
 // Runner state
 const showRunner = ref(false)
 const runnerApp = ref<any>(null)
+const runnerBlobUrl = ref<string | null>(null)
+
+// Preserve runner on hash changes (e.g. HTML uses <a href="#s6">)
+const router = useRouter()
+router.beforeEach((to, from) => {
+  // If only the hash changed on the apps page and runner is open, block navigation
+  if (showRunner.value && to.path === from.path && to.hash !== from.hash) {
+    return false
+  }
+})
 
 // Share
 const showShareModal = ref(false)
@@ -260,9 +275,47 @@ const openEditor = (app: any, folderId?: string | null) => {
 }
 
 const openRunner = (app: any) => {
+  // Cleanup previous blob URL if any
+  if (runnerBlobUrl.value) {
+    URL.revokeObjectURL(runnerBlobUrl.value)
+    runnerBlobUrl.value = null
+  }
   runnerApp.value = app
+  // Inject <base target="_self"> so all links stay in iframe by default
+  const safeHtml = injectNavGuard(app.html || '')
+  const blob = new Blob([safeHtml], { type: 'text/html' })
+  runnerBlobUrl.value = URL.createObjectURL(blob)
   showRunner.value = true
   logAppOpen(app.id)
+}
+
+// Cleanup blob URL when runner closes
+watch(showRunner, (open) => {
+  if (!open && runnerBlobUrl.value) {
+    // Delay revoke to allow iframe to unload gracefully
+    const url = runnerBlobUrl.value
+    runnerBlobUrl.value = null
+    setTimeout(() => URL.revokeObjectURL(url), 500)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (runnerBlobUrl.value) URL.revokeObjectURL(runnerBlobUrl.value)
+})
+
+// Inject <base target="_self"> and link guard so navigation stays in iframe
+const injectNavGuard = (html: string): string => {
+  if (!html) return ''
+  const baseTag = '<base target="_self">'
+  const guardScript = `<script>\n(function(){\n  document.addEventListener('click', function(e){\n    var a = e.target && e.target.closest && e.target.closest('a');\n    if (!a || !a.href) return;\n    if (a.target === '_top' || a.target === '_parent') a.target = '_self';\n    // External links: open in new tab\n    try {\n      var url = new URL(a.href, location.href);\n      if (url.protocol === 'http:' || url.protocol === 'https:') {\n        if (url.origin !== location.origin) {\n          e.preventDefault();\n          window.open(a.href, '_blank', 'noopener');\n        }\n      }\n    } catch(_) {}\n  }, true);\n})();\n<\/script>`
+  const injection = baseTag + guardScript
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head([^>]*)>/i, '<head$1>' + injection)
+  }
+  if (/<html[^>]*>/i.test(html)) {
+    return html.replace(/<html([^>]*)>/i, '<html$1><head>' + injection + '</head>')
+  }
+  return '<!DOCTYPE html><html><head>' + injection + '</head><body>' + html + '</body></html>'
 }
 
 // ── Recently Opened ──────────────────────────────────────────────────

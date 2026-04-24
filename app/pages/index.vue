@@ -139,19 +139,26 @@ const projectsCount = ref(0)
 const linksCount = ref(0)
 const appsCount = ref(0)
 
+const safeCount = async (query: any): Promise<number> => {
+  try {
+    const res = await query
+    return res.count ?? 0
+  } catch { return 0 }
+}
+
 watch(user, async (u) => {
   if (!u) return
-  const [notesRes, tasksRes, projectsRes, linksRes, appsRes] = await Promise.all([
-    client.from('notes').select('id', { count: 'exact', head: true }),
-    client.from('tasks').select('id', { count: 'exact', head: true }).eq('done', false),
-    client.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-    client.from('links').select('id', { count: 'exact', head: true }),
-    client.from('apps').select('id', { count: 'exact', head: true }),
+  const [notes, tasks, proj, links, apps] = await Promise.all([
+    safeCount(client.from('notes').select('id', { count: 'exact', head: true })),
+    safeCount(client.from('tasks').select('id', { count: 'exact', head: true }).eq('done', false)),
+    safeCount(client.from('projects').select('id', { count: 'exact', head: true }).eq('status', 'active')),
+    safeCount(client.from('links').select('id', { count: 'exact', head: true })),
+    safeCount(client.from('apps').select('id', { count: 'exact', head: true })),
   ])
-  notesCount.value = notesRes.count ?? 0
-  tasksCount.value = tasksRes.count ?? 0
-  projectsCount.value = projectsRes.count ?? 0
-  linksCount.value = linksRes.count ?? 0
-  appsCount.value = appsRes.count ?? 0
+  notesCount.value = notes
+  tasksCount.value = tasks
+  projectsCount.value = proj
+  linksCount.value = links
+  appsCount.value = apps
 }, { immediate: true })
 </script>

@@ -180,7 +180,6 @@
 const user = useSupabaseUser()
 const route = useRoute()
 const { current, setTheme, initTheme, themePreviewColors } = useTheme()
-
 const mobileThemeOpen = ref(false)
 const moreMenuOpen = ref(false)
 const searchOpen = ref(false)
