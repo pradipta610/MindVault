@@ -1,23 +1,17 @@
+// SW version — bump to force update on clients
+const SW_VERSION = 'v3'
 self.addEventListener('install', () => self.skipWaiting())
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()))
+self.addEventListener('activate', (e) => e.waitUntil(
+  Promise.all([
+    self.clients.claim(),
+    // Clear any old caches that may contain stale /api/ responses
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+  ])
+))
 
-// Network-first for Supabase API calls — never serve stale data
-self.addEventListener('fetch', (event) => {
-  const url = event.request.url
-  // Bypass cache entirely for Supabase REST/Auth/Storage and our own API
-  if (
-    url.includes('supabase.co') ||
-    url.includes('supabase.in') ||
-    url.includes('/rest/') ||
-    url.includes('/auth/') ||
-    url.includes('/storage/') ||
-    url.includes('/api/')
-  ) {
-    event.respondWith(fetch(event.request))
-    return
-  }
-  // Let everything else pass through normally (browser default)
-})
+// We do NOT intercept fetch at all — let the browser handle everything natively.
+// Calling event.respondWith(fetch(event.request)) breaks POST requests with bodies
+// (multipart/form-data, etc.) because the request body is a one-time stream.
 
 self.addEventListener('push', (event) => {
   let data = { title: 'MindVault', body: '' }

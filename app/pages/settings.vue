@@ -198,6 +198,20 @@
         </div>
       </div>
 
+      <!-- Mood Videos for Focus Timer -->
+      <div class="bg-vault-card border border-vault-border rounded-xl p-4">
+        <label class="block text-sm text-vault-text font-medium mb-1">Mood Videos (Focus Timer)</label>
+        <p class="text-xs text-vault-muted mb-3">
+          Upload GIF atau video pendek (MP4/WebM). Tampil di timer saat fokus & istirahat.
+          <br/><span class="text-vault-muted/70">Max 10MB. Tips: cari "anime study" / "anime sleep" GIF di Giphy/Tenor, download, lalu upload sini.</span>
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <MoodVideoCard mode="working" label="Working Mood" emoji="🧠" />
+          <MoodVideoCard mode="resting" label="Resting Mood" emoji="🧘" />
+        </div>
+      </div>
+
       <!-- Notifications -->
       <div class="bg-vault-card border border-vault-border rounded-xl p-4">
         <label class="block text-sm text-vault-text font-medium mb-1">Notifikasi</label>

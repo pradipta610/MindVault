@@ -5,7 +5,7 @@ export default defineNuxtConfig({
     redirectOptions: {
       login: '/login',
       callback: '/confirm',
-      exclude: ['/login', '/confirm', '/share/*']
+      exclude: ['/login', '/confirm', '/share/*', '/api/*']
     }
   },
   app: {

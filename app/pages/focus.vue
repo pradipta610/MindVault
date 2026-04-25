@@ -128,6 +128,35 @@
           {{ isLongBreak ? 'Istirahat Panjang' : 'Istirahat' }}
         </p>
 
+        <!-- Mood illustration: user's uploaded media, or fallback GIF -->
+        <div class="mood-wrap my-6" :class="moodMode">
+          <video
+            v-if="currentMoodVideoUrl && !isUserMediaGif"
+            :key="currentMoodVideoUrl"
+            :src="currentMoodVideoUrl"
+            autoplay
+            loop
+            muted
+            playsinline
+            class="mood-gif"
+            :class="{ 'mood-gif-working': moodMode === 'working', 'mood-gif-resting': moodMode === 'resting' }"
+          />
+          <img
+            v-else-if="currentMoodVideoUrl && isUserMediaGif"
+            :src="currentMoodVideoUrl"
+            class="mood-gif"
+            :class="{ 'mood-gif-working': moodMode === 'working', 'mood-gif-resting': moodMode === 'resting' }"
+          />
+          <img
+            v-else
+            :src="currentMoodGif"
+            :alt="moodMode === 'working' ? 'Sedang fokus' : 'Istirahat'"
+            class="mood-gif"
+            :class="{ 'mood-gif-working': moodMode === 'working', 'mood-gif-resting': moodMode === 'resting' }"
+            referrerpolicy="no-referrer"
+          />
+        </div>
+
         <!-- Big timer -->
         <div class="font-mono text-6xl sm:text-7xl font-bold text-vault-text tracking-tight mb-2 select-none">
           {{ displayTime }}
@@ -274,24 +303,30 @@ definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
 const { fetchAllPending, tasks } = useTasks()
-const { createSession, completeSession, deleteSession, fetchTodaySessions: fetchTodaySessionsApi, fetchSessionsRange, fetchTaskSessionCounts, fetchStreak } = useFocusSessions()
+const { fetchTodaySessions: fetchTodaySessionsApi, fetchSessionsRange, fetchTaskSessionCounts, fetchStreak } = useFocusSessions()
 const { getCategoryColor } = useCategories()
 const { show: showToast } = useToast()
 
-// ── State ────────────────────────────────────────────────────────────────
-const selectedMethod = ref<FocusMethod>('pomodoro')
-const linkedTaskId = ref<string | null>(null)
-const deadlineInput = ref('')
-const timerState = ref<'idle' | 'running' | 'paused'>('idle')
-const timerPhase = ref<'focus' | 'break'>('focus')
-const isLongBreak = ref(false)
-const secondsRemaining = ref(0)
-const secondsElapsed = ref(0)
-const totalFocusMinutes = ref(0)
-const pomodoroSessionNum = ref(0)
-const currentSessionId = ref<string | null>(null)
-const sessionStartedAt = ref<string | null>(null)
-let timerInterval: ReturnType<typeof setInterval> | null = null
+// Global focus timer (persists across navigations)
+const {
+  selectedMethod,
+  linkedTaskId,
+  deadlineInput,
+  timerState,
+  timerPhase,
+  isLongBreak,
+  secondsRemaining,
+  secondsElapsed,
+  totalFocusMinutes,
+  pomodoroSessionNum,
+  sessionStartedAt,
+  startTimer,
+  pauseTimer,
+  resumeTimer,
+  finishFlowtime,
+  stopTimer,
+  onAfterFinish,
+} = useFocusTimer()
 
 // Stats
 const todaySessions = ref<FocusSession[]>([])
@@ -307,28 +342,22 @@ const ambientVolume = ref(50)
 const ambientSupported = ref(false)
 let audioElement: HTMLAudioElement | null = null
 
-// ── Methods config ───────────────────────────────────────────────────────
+// ── Methods / sounds config (view only) ───────────────────────────────
 const methods = [
   { key: 'pomodoro' as FocusMethod, icon: '🍅', label: 'Pomodoro', desc: '25/5 min' },
-  { key: '52/17' as FocusMethod, icon: '⏱️', label: '52/17', desc: '52 focus, 17 break' },
-  { key: '90min' as FocusMethod, icon: '🧱', label: '90 Min', desc: '90 focus, 20 break' },
+  { key: '52/17' as FocusMethod,   icon: '⏱️', label: '52/17',    desc: '52 focus, 17 break' },
+  { key: '90min' as FocusMethod,   icon: '🧱', label: '90 Min',   desc: '90 focus, 20 break' },
   { key: 'flowtime' as FocusMethod, icon: '🌊', label: 'Flowtime', desc: 'Berhenti saat lelah' },
   { key: 'deadline' as FocusMethod, icon: '⏳', label: 'Deadline', desc: 'Countdown ke target' },
 ]
 
 const ambientSounds = [
   { key: 'rain', icon: '🌧️', label: 'Hujan', url: 'https://cdn.freesound.org/previews/531/531947_6468493-lq.mp3' },
-  { key: 'fire', icon: '🔥', label: 'Api', url: 'https://cdn.freesound.org/previews/277/277021_5143977-lq.mp3' },
+  { key: 'fire', icon: '🔥', label: 'Api',    url: 'https://cdn.freesound.org/previews/277/277021_5143977-lq.mp3' },
   { key: 'wind', icon: '🌬️', label: 'Angin', url: 'https://cdn.freesound.org/previews/456/456058_2718748-lq.mp3' },
 ]
 
-const methodConfigs: Record<string, { focus: number; shortBreak: number; longBreak?: number; longBreakInterval?: number }> = {
-  'pomodoro': { focus: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60, longBreakInterval: 4 },
-  '52/17': { focus: 52 * 60, shortBreak: 17 * 60 },
-  '90min': { focus: 90 * 60, shortBreak: 20 * 60 },
-}
-
-// ── Computed ─────────────────────────────────────────────────────────────
+// ── Derived helpers for template ────────────────────────────────────
 const pendingTasks = computed(() => tasks.value.filter((t: any) => !t.done))
 
 const linkedTask = computed(() => {
@@ -338,6 +367,41 @@ const linkedTask = computed(() => {
 
 const currentMethodIcon = computed(() => methods.find(m => m.key === selectedMethod.value)?.icon || '')
 const currentMethodLabel = computed(() => methods.find(m => m.key === selectedMethod.value)?.label || '')
+
+// Mood illustration mode: 'working' when actively focusing, 'resting' when paused or on break
+const moodMode = computed<'working' | 'resting'>(() => {
+  if (timerState.value === 'paused') return 'resting'
+  if (timerPhase.value === 'break') return 'resting'
+  return 'working'
+})
+
+// Mood GIFs (customize these URLs as you like)
+// Tip: cari di giphy.com / tenor.com, klik GIF, copy direct ".gif" URL
+const MOOD_GIFS = {
+  working: 'https://media.tenor.com/pXNk_hSOAjAAAAAM/anime-study.gif',    // anime girl studying
+  break:   'https://media.tenor.com/kQXDk_p5y1YAAAAM/anime-coffee.gif',   // anime coffee break
+  paused:  'https://media.tenor.com/NYlFWnCjBdAAAAAM/anime-sleep.gif',    // anime sleeping
+}
+
+const currentMoodGif = computed(() => {
+  if (timerState.value === 'paused') return MOOD_GIFS.paused
+  if (timerPhase.value === 'break') return MOOD_GIFS.break
+  return MOOD_GIFS.working
+})
+
+// User-generated mood videos (from Settings page). If set, these override the default GIFs.
+const { moodWorkingUrl, moodRestingUrl, loadMoodUrls } = useMoodVideos()
+
+const currentMoodVideoUrl = computed(() => {
+  if (moodMode.value === 'resting') return moodRestingUrl.value
+  return moodWorkingUrl.value
+})
+
+// Detect if user's uploaded media is a GIF (render via <img>) vs video (<video>)
+const isUserMediaGif = computed(() => {
+  const url = currentMoodVideoUrl.value
+  return !!url && /\.gif(\?|$)/i.test(url)
+})
 
 const displayTime = computed(() => {
   const isCountUp = selectedMethod.value === 'flowtime'
@@ -355,153 +419,9 @@ const todayStats = computed(() => {
   return { totalMinutes, sessions: todaySessions.value.length }
 })
 
-// ── Timer logic ──────────────────────────────────────────────────────────
-const startTimer = async () => {
-  const now = new Date()
-  sessionStartedAt.value = now.toISOString()
-  pomodoroSessionNum.value = 1
-  totalFocusMinutes.value = 0
-  timerPhase.value = 'focus'
-  isLongBreak.value = false
-
-  if (selectedMethod.value === 'flowtime') {
-    secondsElapsed.value = 0
-  } else if (selectedMethod.value === 'deadline') {
-    const target = new Date(deadlineInput.value)
-    const diff = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000))
-    if (diff <= 0) {
-      showToast('Deadline sudah lewat!')
-      return
-    }
-    secondsRemaining.value = diff
-  } else {
-    const cfg = methodConfigs[selectedMethod.value]
-    secondsRemaining.value = cfg?.focus ?? 25 * 60
-  }
-
-  // Create DB session
-  const session = await createSession({
-    method: selectedMethod.value,
-    task_id: linkedTaskId.value,
-    started_at: sessionStartedAt.value,
-  })
-  currentSessionId.value = session?.id || null
-
-  timerState.value = 'running'
-  startInterval()
-}
-
-const startInterval = () => {
-  if (timerInterval) clearInterval(timerInterval)
-  timerInterval = setInterval(() => {
-    if (selectedMethod.value === 'flowtime') {
-      secondsElapsed.value++
-    } else {
-      secondsRemaining.value--
-      if (secondsRemaining.value <= 0) {
-        onTimerComplete()
-      }
-    }
-  }, 1000)
-}
-
-const onTimerComplete = () => {
-  if (timerInterval) clearInterval(timerInterval)
-
-  if (timerPhase.value === 'focus') {
-    // Focus phase ended → go to break
-    const cfg = methodConfigs[selectedMethod.value]
-    if (cfg) {
-      const focusMins = Math.round(cfg.focus / 60)
-      totalFocusMinutes.value += focusMins
-
-      // Check long break for pomodoro
-      if (selectedMethod.value === 'pomodoro' && cfg.longBreakInterval && pomodoroSessionNum.value % cfg.longBreakInterval === 0) {
-        isLongBreak.value = true
-        secondsRemaining.value = cfg.longBreak || 15 * 60
-      } else {
-        isLongBreak.value = false
-        secondsRemaining.value = cfg.shortBreak
-      }
-      timerPhase.value = 'break'
-      showToast('Waktu istirahat! 🎉')
-      startInterval()
-    } else {
-      // Deadline method completed
-      finishSession()
-    }
-  } else {
-    // Break ended → start next focus
-    timerPhase.value = 'focus'
-    pomodoroSessionNum.value++
-    const cfg = methodConfigs[selectedMethod.value]
-    secondsRemaining.value = cfg?.focus ?? 25 * 60
-    showToast('Ayo fokus lagi! 💪')
-    startInterval()
-  }
-}
-
-const pauseTimer = () => {
-  if (timerInterval) clearInterval(timerInterval)
-  timerState.value = 'paused'
-}
-
-const resumeTimer = () => {
-  timerState.value = 'running'
-  startInterval()
-}
-
-const finishFlowtime = () => {
-  if (timerInterval) clearInterval(timerInterval)
-  totalFocusMinutes.value = Math.round(secondsElapsed.value / 60)
-  finishSession()
-}
-
-const stopTimer = () => {
-  if (timerInterval) clearInterval(timerInterval)
-
-  // Calculate focus minutes so far
-  if (selectedMethod.value === 'flowtime') {
-    totalFocusMinutes.value = Math.round(secondsElapsed.value / 60)
-  } else if (timerPhase.value === 'focus') {
-    const cfg = methodConfigs[selectedMethod.value]
-    if (cfg) {
-      const elapsed = cfg.focus - secondsRemaining.value
-      totalFocusMinutes.value += Math.round(elapsed / 60)
-    } else {
-      // deadline
-      totalFocusMinutes.value = Math.round((Date.now() - new Date(sessionStartedAt.value!).getTime()) / 60000)
-    }
-  }
-
-  if (totalFocusMinutes.value >= 1) {
-    finishSession()
-  } else {
-    // Less than 1 minute — discard
-    if (currentSessionId.value) deleteSession(currentSessionId.value)
-    resetTimer()
-    showToast('Sesi dibatalkan')
-  }
-}
-
-const finishSession = async () => {
-  if (currentSessionId.value && totalFocusMinutes.value >= 1) {
-    await completeSession(currentSessionId.value, totalFocusMinutes.value)
-    showToast(`Sesi selesai! ${totalFocusMinutes.value} menit fokus 🎯`)
-  }
-  resetTimer()
-  loadStats()
-}
-
-const resetTimer = () => {
-  timerState.value = 'idle'
-  timerPhase.value = 'focus'
-  secondsRemaining.value = 0
-  secondsElapsed.value = 0
-  currentSessionId.value = null
-  sessionStartedAt.value = null
-  isLongBreak.value = false
-}
+// Timer logic lives in useFocusTimer composable (global state).
+// Reload stats whenever a session finishes.
+onAfterFinish(() => { loadStats() })
 
 // ── Ambient sound ────────────────────────────────────────────────────────
 const toggleSound = (key: string) => {
@@ -606,7 +526,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (timerInterval) clearInterval(timerInterval)
+  // Do NOT stop the timer here — it lives in global composable and keeps running
+  // across navigations. Just stop ambient sound for this page.
   stopSound()
 })
 
@@ -614,6 +535,49 @@ watch(user, async (u) => {
   if (u) {
     await fetchAllPending()
     loadStats()
+    loadMoodUrls()
   }
 }, { immediate: true })
 </script>
+
+<style scoped>
+/* ===== Mood GIF illustration ===== */
+.mood-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+}
+
+.mood-gif {
+  max-width: 240px;
+  max-height: 200px;
+  width: auto;
+  height: auto;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  transition: transform 0.5s ease, box-shadow 0.5s ease, filter 0.5s ease;
+}
+
+.mood-gif-working {
+  box-shadow: 0 0 0 2px rgba(212, 168, 83, 0.3), 0 8px 32px rgba(212, 168, 83, 0.2);
+  animation: subtle-glow-working 2.5s ease-in-out infinite;
+}
+
+.mood-gif-resting {
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.25), 0 8px 32px rgba(74, 222, 128, 0.15);
+  filter: saturate(0.9);
+  animation: subtle-float-resting 3.5s ease-in-out infinite;
+}
+
+@keyframes subtle-glow-working {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(212, 168, 83, 0.3), 0 8px 32px rgba(212, 168, 83, 0.2); }
+  50%      { box-shadow: 0 0 0 3px rgba(212, 168, 83, 0.5), 0 12px 40px rgba(212, 168, 83, 0.35); }
+}
+
+@keyframes subtle-float-resting {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+</style>
