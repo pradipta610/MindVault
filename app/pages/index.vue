@@ -114,6 +114,7 @@ definePageMeta({ layout: 'default' })
 const user = useSupabaseUser()
 const client = useSupabaseClient()
 const searchOpen = ref(false)
+const { register: registerSync } = useBackgroundSync()
 
 // Ctrl+K / Cmd+K keyboard shortcut
 onMounted(() => {
@@ -146,8 +147,8 @@ const safeCount = async (query: any): Promise<number> => {
   } catch { return 0 }
 }
 
-watch(user, async (u) => {
-  if (!u) return
+const loadCounts = async () => {
+  if (!user.value) return
   const [notes, tasks, proj, links, apps] = await Promise.all([
     safeCount(client.from('notes').select('id', { count: 'exact', head: true })),
     safeCount(client.from('tasks').select('id', { count: 'exact', head: true }).eq('done', false)),
@@ -160,5 +161,8 @@ watch(user, async (u) => {
   projectsCount.value = proj
   linksCount.value = links
   appsCount.value = apps
-}, { immediate: true })
+}
+
+watch(user, (u) => { if (u) loadCounts() }, { immediate: true })
+registerSync(loadCounts)
 </script>

@@ -124,6 +124,8 @@ definePageMeta({ layout: 'default' })
 const user = useSupabaseUser()
 const { projects, loading, fetchProjects, createProject } = useProjects()
 const { show: showToast } = useToast()
+const { register: registerSync } = useBackgroundSync()
+registerSync(fetchProjects)
 
 const filter = ref<'active' | 'done'>('active')
 const showModal = ref(false)

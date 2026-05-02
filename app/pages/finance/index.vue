@@ -62,9 +62,7 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="flex justify-center py-16">
-      <div class="w-6 h-6 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" />
-    </div>
+    <SkeletonLoader v-if="loading && transactions.length === 0" type="finance" :count="5" />
 
     <template v-else>
       <!-- Summary Card -->
@@ -341,6 +339,7 @@ definePageMeta({ layout: 'default' })
 const user = useSupabaseUser()
 const { transactions, loading, fetchMonthTransactions, createTransaction, updateTransaction, deleteTransaction } = useFinance()
 const { currentScope, fetchScopes, updateScope, loaded: scopesLoaded } = useFinanceScopes()
+const { register: registerSync } = useBackgroundSync()
 const { show: showToast } = useToast()
 
 // ── Month navigation ─────────────────────────────────────────────────���──────
@@ -365,6 +364,7 @@ const nextMonth = () => {
   loadTransactions()
 }
 const loadTransactions = () => fetchMonthTransactions(currentYear.value, currentMonth.value)
+registerSync(loadTransactions)
 
 // ── Filter ──────────────────────────────────────────────────────────────────
 const filterType = ref<'all' | 'income' | 'expense'>('all')

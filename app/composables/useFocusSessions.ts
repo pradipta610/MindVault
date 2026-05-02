@@ -84,7 +84,7 @@ export const useFocusSessions = () => {
     today.setHours(0, 0, 0, 0)
     const { data, error } = await client
       .from('focus_sessions')
-      .select('*')
+      .select('id, user_id, task_id, project_id, method, duration_minutes, started_at, completed_at, created_at')
       .eq('user_id', userId)
       .gte('started_at', today.toISOString())
       .not('completed_at', 'is', null)
@@ -102,7 +102,7 @@ export const useFocusSessions = () => {
     if (!userId) return []
     const { data, error } = await client
       .from('focus_sessions')
-      .select('*')
+      .select('id, user_id, task_id, project_id, method, duration_minutes, started_at, completed_at, created_at')
       .eq('user_id', userId)
       .gte('started_at', startDate)
       .lte('started_at', endDate)

@@ -59,15 +59,13 @@
       <NuxtLink to="/settings" class="text-xs text-vault-accent font-medium hover:underline">Ke Settings</NuxtLink>
     </div>
 
-    <div v-if="loading" class="flex justify-center py-12">
-      <div class="w-6 h-6 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" />
-    </div>
+    <SkeletonLoader v-if="neverLoaded && loading" type="list" :count="4" />
 
-    <div v-else-if="notes.length === 0 && !searchQuery" class="text-center py-16">
+    <div v-else-if="notes.length === 0 && !searchQuery && !neverLoaded" class="text-center py-16">
       <p class="text-vault-muted">Belum ada notes. Mulai dump pikiranmu!</p>
     </div>
 
-    <div v-else-if="filteredNotes.length === 0" class="text-center py-16">
+    <div v-else-if="filteredNotes.length === 0 && !neverLoaded" class="text-center py-16">
       <p class="text-vault-muted">Tidak ada notes yang cocok</p>
     </div>
 
@@ -125,7 +123,7 @@
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
-const { notes, loading, fetchNotes, createNote, updateNote } = useNotes()
+const { notes, loading, neverLoaded, fetchNotes, createNote, updateNote } = useNotes()
 const { archiveDump } = useBacklog()
 const { createTask, updateTask, deleteTask } = useTasks()
 const { schedule, cancel } = useNotifications()
@@ -136,6 +134,8 @@ const tags = categoryNames
 
 const activeTag = ref('all')
 const searchQuery = ref('')
+const { register: registerSync } = useBackgroundSync()
+registerSync(() => fetchNotes(activeTag.value))
 const showModal = ref(false)
 const editingNote = ref<any>(null)
 const form = reactive({ raw: '', tag: '' })

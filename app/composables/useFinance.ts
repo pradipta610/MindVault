@@ -12,7 +12,7 @@ export const useFinance = () => {
 
   // Build a base query filtered by current scope (or all scopes if null)
   const scopedQuery = (userId: string) => {
-    let q = client.from('transactions').select('*').eq('user_id', userId)
+    let q = client.from('transactions').select('id, user_id, scope_id, type, amount, category, note, date, created_at').eq('user_id', userId)
     if (currentScopeId.value) q = q.eq('scope_id', currentScopeId.value)
     return q
   }

@@ -193,6 +193,8 @@ const {
 } = useApps()
 const { projects: projectList, fetchProjects } = useProjects()
 const { show: showToast } = useToast()
+const { register: registerSync } = useBackgroundSync()
+registerSync(fetchApps)
 
 const explorerRef = ref<any>(null)
 const saving = ref(false)

@@ -6,6 +6,14 @@ export default defineNuxtConfig({
       login: '/login',
       callback: '/confirm',
       exclude: ['/login', '/confirm', '/share/*', '/api/*']
+    },
+    clientOptions: {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'mindvault-auth',
+      }
     }
   },
   app: {

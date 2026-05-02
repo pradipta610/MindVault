@@ -1,7 +1,13 @@
+// Module-level singletons — persist across page navigations
+const _notes = ref<any[]>([])
+const _loading = ref(false)
+const _lastFetched = ref(0)
+const _lastTag = ref<string | undefined>(undefined)
+const _ownerId = ref<string | null>(null)
+const STALE_MS = 60_000
+
 export const useNotes = () => {
   const client: any = useSupabaseClient()
-  const notes = ref<any[]>([])
-  const loading = ref(false)
 
   const getUserId = async (): Promise<string | null> => {
     const { data: { user } } = await client.auth.getUser()
@@ -9,13 +15,25 @@ export const useNotes = () => {
   }
 
   const fetchNotes = async (tag?: string) => {
+    const sameTag = tag === _lastTag.value
+    const fresh = _lastFetched.value > 0 && Date.now() - _lastFetched.value < STALE_MS
+    if (fresh && sameTag && _notes.value.length > 0) return
+
+    // Only block UI on very first load
+    if (_lastFetched.value === 0) _loading.value = true
+
     const userId = await getUserId()
-    if (!userId) return
-    loading.value = true
+    if (!userId) { _loading.value = false; return }
+
+    if (_ownerId.value && _ownerId.value !== userId) {
+      _notes.value = []; _lastFetched.value = 0
+    }
+    _ownerId.value = userId
+
     try {
       let query = client
         .from('notes')
-        .select('*')
+        .select('id, user_id, raw, title, tag, project_id, images, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
       if (tag && tag !== 'all') {
@@ -23,11 +41,13 @@ export const useNotes = () => {
       }
       const { data, error } = await query
       if (error) throw error
-      notes.value = data || []
+      _notes.value = data || []
+      _lastFetched.value = Date.now()
+      _lastTag.value = tag
     } catch (e) {
       console.error('Failed to fetch notes:', e)
     } finally {
-      loading.value = false
+      _loading.value = false
     }
   }
 
@@ -53,7 +73,7 @@ export const useNotes = () => {
       console.error('[createNote] Supabase error:', error.message, error)
       return null
     }
-    if (data) notes.value.unshift(data)
+    if (data) _notes.value.unshift(data)
     return data
   }
 
@@ -71,8 +91,8 @@ export const useNotes = () => {
       return null
     }
     if (data) {
-      const idx = notes.value.findIndex((n: any) => n.id === id)
-      if (idx !== -1) notes.value[idx] = data
+      const idx = _notes.value.findIndex((n: any) => n.id === id)
+      if (idx !== -1) _notes.value[idx] = data
     }
     return data
   }
@@ -85,8 +105,19 @@ export const useNotes = () => {
       console.error('Failed to delete note:', error)
       return
     }
-    notes.value = notes.value.filter((n: any) => n.id !== id)
+    _notes.value = _notes.value.filter((n: any) => n.id !== id)
   }
 
-  return { notes, loading, fetchNotes, createNote, updateNote, deleteNote }
+  const invalidate = () => { _lastFetched.value = 0 }
+
+  return {
+    notes: _notes,
+    loading: _loading,
+    neverLoaded: computed(() => _lastFetched.value === 0),
+    fetchNotes,
+    createNote,
+    updateNote,
+    deleteNote,
+    invalidate,
+  }
 }

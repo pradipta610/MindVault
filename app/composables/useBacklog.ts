@@ -17,7 +17,7 @@ export const useBacklog = () => {
     try {
       const { data, error } = await client
         .from('backlog')
-        .select('*')
+        .select('id, user_id, source_type, source_data, deleted_at, created_at')
         .eq('user_id', userId)
         .order('deleted_at', { ascending: false })
       if (error) throw error

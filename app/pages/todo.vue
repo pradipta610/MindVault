@@ -79,10 +79,8 @@
           </button>
         </div>
 
-        <div v-if="loading" class="flex justify-center py-12">
-          <div class="w-6 h-6 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" />
-        </div>
-        <div v-else-if="filteredTasks.length === 0" class="text-center py-12">
+        <SkeletonLoader v-if="neverLoaded && loading" type="task" :count="4" />
+        <div v-else-if="filteredTasks.length === 0 && !neverLoaded" class="text-center py-12">
           <p class="text-vault-muted text-sm">{{ searchQuery || activeCat !== 'all' ? 'Tidak ada task yang cocok' : 'Tidak ada task untuk hari ini.' }}</p>
         </div>
         <div v-else class="space-y-2">
@@ -116,10 +114,8 @@
       <p class="text-sm font-medium text-vault-text mb-3">{{ formatDisplayDate(selectedDate) }}</p>
 
       <!-- Task list -->
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-6 h-6 border-2 border-vault-accent border-t-transparent rounded-full animate-spin" />
-      </div>
-      <div v-else-if="filteredTasks.length === 0" class="text-center py-12 pb-24">
+      <SkeletonLoader v-if="neverLoaded && loading" type="task" :count="4" />
+      <div v-else-if="filteredTasks.length === 0 && !neverLoaded" class="text-center py-12 pb-24">
         <p class="text-vault-muted text-sm">{{ searchQuery || activeCat !== 'all' ? 'Tidak ada task yang cocok' : 'Tidak ada task untuk hari ini.' }}</p>
       </div>
       <div v-else class="space-y-2 pb-24">
@@ -171,7 +167,7 @@
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
-const { tasks, loading, fetchTasksForDate, fetchTasksForRange, rolloverTasks, createTask, updateTask, completeTask, deleteTask } = useTasks()
+const { tasks, loading, neverLoaded, fetchTasksForDate, fetchTasksForRange, rolloverTasks, createTask, updateTask, completeTask, deleteTask } = useTasks()
 const { createNote, updateNote } = useNotes()
 const { uploadImages, deleteImage } = useNoteImages()
 const { show: showToast } = useToast()
@@ -180,6 +176,8 @@ const { categoryNames, hasCategories, fetchCategories, injectAllStyles, getCateg
 
 const categories = categoryNames
 const selectedDate = ref(toDateString(new Date()))
+const { register: registerSync } = useBackgroundSync()
+registerSync(() => fetchTasksForDate(selectedDate.value))
 const searchQuery = ref('')
 const showSearch = ref(false)
 const saving = ref(false)

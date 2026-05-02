@@ -1,7 +1,13 @@
+// Module-level singletons — persist across page navigations
+const _tasks = ref<any[]>([])
+const _loading = ref(false)
+const _cachedDate = ref<string | null>(null)
+const _lastFetched = ref(0)
+const _ownerId = ref<string | null>(null)
+const STALE_MS = 60_000
+
 export const useTasks = () => {
   const client: any = useSupabaseClient()
-  const tasks = ref<any[]>([])
-  const loading = ref(false)
 
   const getUserId = async (): Promise<string | null> => {
     const { data: { user } } = await client.auth.getUser()
@@ -9,23 +15,36 @@ export const useTasks = () => {
   }
 
   const fetchTasksForDate = async (date: string) => {
+    const sameDate = date === _cachedDate.value
+    const fresh = _lastFetched.value > 0 && Date.now() - _lastFetched.value < STALE_MS
+    if (fresh && sameDate && _tasks.value.length >= 0 && _lastFetched.value > 0) return
+
+    if (_lastFetched.value === 0) _loading.value = true
+
     const userId = await getUserId()
-    if (!userId) return
-    loading.value = true
+    if (!userId) { _loading.value = false; return }
+
+    if (_ownerId.value && _ownerId.value !== userId) {
+      _tasks.value = []; _lastFetched.value = 0
+    }
+    _ownerId.value = userId
+
     try {
       const { data, error } = await client
         .from('tasks')
-        .select('*')
+        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, created_at')
         .eq('user_id', userId)
         .eq('date', date)
         .eq('done', false)
         .order('created_at', { ascending: true })
       if (error) throw error
-      tasks.value = data || []
+      _tasks.value = data || []
+      _cachedDate.value = date
+      _lastFetched.value = Date.now()
     } catch (e) {
       console.error('Failed to fetch tasks:', e)
     } finally {
-      loading.value = false
+      _loading.value = false
     }
   }
 
@@ -52,21 +71,21 @@ export const useTasks = () => {
   const fetchAllPending = async () => {
     const userId = await getUserId()
     if (!userId) return
-    loading.value = true
+    _loading.value = true
     try {
       const { data, error } = await client
         .from('tasks')
-        .select('*')
+        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, created_at')
         .eq('user_id', userId)
         .eq('done', false)
         .order('date', { ascending: true })
         .order('created_at', { ascending: true })
       if (error) throw error
-      tasks.value = data || []
+      _tasks.value = data || []
     } catch (e) {
       console.error('Failed to fetch all tasks:', e)
     } finally {
-      loading.value = false
+      _loading.value = false
     }
   }
 
@@ -118,7 +137,7 @@ export const useTasks = () => {
       console.error('Failed to create task:', error)
       return null
     }
-    if (data) tasks.value.push(data)
+    if (data) _tasks.value.push(data)
     return data
   }
 
@@ -133,8 +152,8 @@ export const useTasks = () => {
       console.error('Failed to update task:', error)
       throw new Error('Failed to update task')
     }
-    const idx = tasks.value.findIndex((t: any) => t.id === id)
-    if (idx !== -1) tasks.value[idx] = { ...tasks.value[idx], ...data }
+    const idx = _tasks.value.findIndex((t: any) => t.id === id)
+    if (idx !== -1) _tasks.value[idx] = { ..._tasks.value[idx], ...data }
     return data
   }
 
@@ -159,7 +178,7 @@ export const useTasks = () => {
     }
 
     // Remove from local state
-    tasks.value = tasks.value.filter((t: any) => t.id !== task.id)
+    _tasks.value = _tasks.value.filter((t: any) => t.id !== task.id)
   }
 
   const deleteTask = async (id: string) => {
@@ -170,12 +189,15 @@ export const useTasks = () => {
       console.error('Failed to delete task:', error)
       return
     }
-    tasks.value = tasks.value.filter((t: any) => t.id !== id)
+    _tasks.value = _tasks.value.filter((t: any) => t.id !== id)
   }
 
+  const invalidate = () => { _lastFetched.value = 0 }
+
   return {
-    tasks,
-    loading,
+    tasks: _tasks,
+    loading: _loading,
+    neverLoaded: computed(() => _lastFetched.value === 0),
     fetchTasksForDate,
     fetchTasksForRange,
     fetchAllPending,
@@ -184,5 +206,6 @@ export const useTasks = () => {
     updateTask,
     completeTask,
     deleteTask,
+    invalidate,
   }
 }

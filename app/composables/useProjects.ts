@@ -1,8 +1,12 @@
+// Module-level singletons — persist across page navigations
+const _projects = ref<any[]>([])
+const _loading = ref(false)
+const _lastFetched = ref(0)
+const _ownerId = ref<string | null>(null)
+const STALE_MS = 60_000
+
 export const useProjects = () => {
   const client: any = useSupabaseClient()
-
-  const projects = ref<any[]>([])
-  const loading = ref(false)
 
   const getUserId = async (): Promise<string | null> => {
     const { data: { user } } = await client.auth.getUser()
@@ -10,32 +14,42 @@ export const useProjects = () => {
   }
 
   const fetchProjects = async () => {
+    const fresh = _lastFetched.value > 0 && Date.now() - _lastFetched.value < STALE_MS
+    if (fresh) return
+
+    if (_lastFetched.value === 0) _loading.value = true
+
     const userId = await getUserId()
-    if (!userId) return
-    loading.value = true
+    if (!userId) { _loading.value = false; return }
+
+    if (_ownerId.value && _ownerId.value !== userId) {
+      _projects.value = []; _lastFetched.value = 0
+    }
+    _ownerId.value = userId
+
     try {
       const { data: projs, error } = await client
         .from('projects')
-        .select('*')
+        .select('id, user_id, name, color, icon, status, created_at, updated_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
       if (error) throw error
-      if (!projs || projs.length === 0) { projects.value = []; return }
+      if (!projs || projs.length === 0) { _projects.value = []; _lastFetched.value = Date.now(); return }
 
       const { data: tasks } = await client
         .from('project_tasks')
         .select('project_id, done, parent_id')
         .in('project_id', projs.map((p: any) => p.id))
 
-      projects.value = projs.map((p: any) => {
-        // Only count top-level tasks for progress
+      _projects.value = projs.map((p: any) => {
         const pt = (tasks || []).filter((t: any) => t.project_id === p.id && !t.parent_id)
         return { ...p, totalTasks: pt.length, doneTasks: pt.filter((t: any) => t.done).length }
       })
+      _lastFetched.value = Date.now()
     } catch (e) {
       console.error('Failed to fetch projects:', e)
     } finally {
-      loading.value = false
+      _loading.value = false
     }
   }
 
@@ -54,7 +68,7 @@ export const useProjects = () => {
       .select()
       .single()
     if (error) { console.error('Failed to create project:', error); return null }
-    if (data) projects.value.unshift({ ...data, totalTasks: 0, doneTasks: 0 })
+    if (data) _projects.value.unshift({ ...data, totalTasks: 0, doneTasks: 0 })
     return data
   }
 
@@ -66,15 +80,15 @@ export const useProjects = () => {
       .select()
       .single()
     if (error) { console.error('Failed to update project:', error); return null }
-    const idx = projects.value.findIndex((p: any) => p.id === id)
-    if (idx !== -1 && data) projects.value[idx] = { ...projects.value[idx], ...data }
+    const idx = _projects.value.findIndex((p: any) => p.id === id)
+    if (idx !== -1 && data) _projects.value[idx] = { ..._projects.value[idx], ...data }
     return data
   }
 
   const deleteProject = async (id: string) => {
     const { error } = await client.from('projects').delete().eq('id', id)
     if (error) { console.error('Failed to delete project:', error); return }
-    projects.value = projects.value.filter((p: any) => p.id !== id)
+    _projects.value = _projects.value.filter((p: any) => p.id !== id)
   }
 
   // ── Project Tasks ──────────────────────────────────────────────────────────
@@ -274,10 +288,14 @@ export const useProjects = () => {
     return data || []
   }
 
+  const invalidate = () => { _lastFetched.value = 0 }
+
   return {
-    projects,
-    loading,
+    projects: _projects,
+    loading: _loading,
+    neverLoaded: computed(() => _lastFetched.value === 0),
     fetchProjects,
+    invalidate,
     fetchProject,
     createProject,
     updateProject,

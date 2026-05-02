@@ -1,8 +1,13 @@
+// Module-level singletons — persist across page navigations
+const _apps = ref<any[]>([])
+const _appFolders = ref<any[]>([])
+const _loading = ref(false)
+const _lastFetched = ref(0)
+const _ownerId = ref<string | null>(null)
+const STALE_MS = 60_000
+
 export const useApps = () => {
   const client: any = useSupabaseClient()
-  const apps = ref<any[]>([])
-  const folders = ref<any[]>([])
-  const loading = ref(false)
 
   const getUserId = async (): Promise<string | null> => {
     const { data: { user } } = await client.auth.getUser()
@@ -12,21 +17,40 @@ export const useApps = () => {
   // ── Apps CRUD ───────────────────────────────────────────────────────────
 
   const fetchApps = async () => {
+    const fresh = _lastFetched.value > 0 && Date.now() - _lastFetched.value < STALE_MS
+    if (fresh) return
+
+    if (_lastFetched.value === 0) _loading.value = true
+
     const userId = await getUserId()
-    if (!userId) return
-    loading.value = true
+    if (!userId) { _loading.value = false; return }
+
+    if (_ownerId.value && _ownerId.value !== userId) {
+      _apps.value = []; _appFolders.value = []; _lastFetched.value = 0
+    }
+    _ownerId.value = userId
+
     try {
-      const { data, error } = await client
-        .from('apps')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      apps.value = data || []
+      const [appsRes, foldersRes] = await Promise.all([
+        client
+          .from('apps')
+          .select('id, user_id, name, description, html, project_id, folder_id, share_token, created_at, updated_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false }),
+        client
+          .from('app_folders')
+          .select('id, user_id, name, sort_order, parent_id, created_at')
+          .eq('user_id', userId)
+          .order('sort_order', { ascending: true }),
+      ])
+      if (appsRes.error) throw appsRes.error
+      _apps.value = appsRes.data || []
+      if (!foldersRes.error) _appFolders.value = foldersRes.data || []
+      _lastFetched.value = Date.now()
     } catch (e) {
       console.error('Failed to fetch apps:', e)
     } finally {
-      loading.value = false
+      _loading.value = false
     }
   }
 
@@ -50,7 +74,7 @@ export const useApps = () => {
       console.error('Failed to create app:', error)
       throw new Error('Failed to save app')
     }
-    if (data) apps.value.unshift(data)
+    if (data) _apps.value.unshift(data)
     return data
   }
 
@@ -67,8 +91,8 @@ export const useApps = () => {
       throw new Error('Failed to update app')
     }
     if (data) {
-      const idx = apps.value.findIndex((a: any) => a.id === id)
-      if (idx !== -1) apps.value[idx] = data
+      const idx = _apps.value.findIndex((a: any) => a.id === id)
+      if (idx !== -1) _apps.value[idx] = data
     }
     return data
   }
@@ -79,27 +103,17 @@ export const useApps = () => {
       console.error('Failed to delete app:', error)
       throw new Error('Failed to delete app')
     }
-    apps.value = apps.value.filter((a: any) => a.id !== id)
+    _apps.value = _apps.value.filter((a: any) => a.id !== id)
   }
 
   // ── Folders CRUD ────────────────────────────────────────────────────────
 
-  const fetchFolders = async () => {
-    const userId = await getUserId()
-    if (!userId) return
-    const { data, error } = await client
-      .from('app_folders')
-      .select('*')
-      .eq('user_id', userId)
-      .order('sort_order', { ascending: true })
-    if (error) { console.error('Failed to fetch app folders:', error); return }
-    folders.value = data || []
-  }
+  const fetchFolders = async () => { /* merged into fetchApps */ }
 
   const createFolder = async (name: string, parentId?: string | null) => {
     const userId = await getUserId()
     if (!userId) return null
-    const maxOrder = folders.value.reduce((max: number, f: any) => Math.max(max, f.sort_order ?? 0), 0)
+    const maxOrder = _appFolders.value.reduce((max: number, f: any) => Math.max(max, f.sort_order ?? 0), 0)
     const insert: Record<string, any> = { user_id: userId, name, sort_order: maxOrder + 1 }
     if (parentId) insert.parent_id = parentId
     const { data, error } = await client
@@ -108,7 +122,7 @@ export const useApps = () => {
       .select()
       .single()
     if (error) { console.error('Failed to create folder:', error); return null }
-    if (data) folders.value.push(data)
+    if (data) _appFolders.value.push(data)
     return data
   }
 
@@ -121,8 +135,8 @@ export const useApps = () => {
       .single()
     if (error) { console.error('Failed to update folder:', error); return null }
     if (data) {
-      const idx = folders.value.findIndex((f: any) => f.id === id)
-      if (idx !== -1) folders.value[idx] = data
+      const idx = _appFolders.value.findIndex((f: any) => f.id === id)
+      if (idx !== -1) _appFolders.value[idx] = data
     }
     return data
   }
@@ -136,8 +150,8 @@ export const useApps = () => {
       .single()
     if (error) { console.error('Failed to rename folder:', error); return null }
     if (data) {
-      const idx = folders.value.findIndex((f: any) => f.id === id)
-      if (idx !== -1) folders.value[idx] = data
+      const idx = _appFolders.value.findIndex((f: any) => f.id === id)
+      if (idx !== -1) _appFolders.value[idx] = data
     }
     return data
   }
@@ -145,9 +159,9 @@ export const useApps = () => {
   const deleteFolder = async (id: string) => {
     const { error } = await client.from('app_folders').delete().eq('id', id)
     if (error) { console.error('Failed to delete folder:', error); return }
-    folders.value = folders.value.filter((f: any) => f.id !== id)
+    _appFolders.value = _appFolders.value.filter((f: any) => f.id !== id)
     // Apps in this folder get folder_id set to null by ON DELETE SET NULL
-    apps.value = apps.value.map((a: any) => a.folder_id === id ? { ...a, folder_id: null } : a)
+    _apps.value = _apps.value.map((a: any) => a.folder_id === id ? { ...a, folder_id: null } : a)
   }
 
   // ── Usage Logs ─────────────────────────────────────────────────────────
@@ -196,7 +210,7 @@ export const useApps = () => {
     if (existing) {
       recentApps.value = [existing, ...recentApps.value.filter((a: any) => a.id !== appId)].slice(0, 8)
     } else {
-      const app = apps.value.find((a: any) => a.id === appId)
+      const app = _apps.value.find((a: any) => a.id === appId)
       if (app) recentApps.value = [app, ...recentApps.value].slice(0, 8)
     }
   }
@@ -229,8 +243,8 @@ export const useApps = () => {
       .single()
     if (error) { console.error('Failed to create share link:', error); return null }
     if (data) {
-      const idx = apps.value.findIndex((a: any) => a.id === appId)
-      if (idx !== -1) apps.value[idx] = data
+      const idx = _apps.value.findIndex((a: any) => a.id === appId)
+      if (idx !== -1) _apps.value[idx] = data
     }
     return token
   }
@@ -244,8 +258,8 @@ export const useApps = () => {
       .single()
     if (error) { console.error('Failed to revoke share link:', error); return }
     if (data) {
-      const idx = apps.value.findIndex((a: any) => a.id === appId)
-      if (idx !== -1) apps.value[idx] = data
+      const idx = _apps.value.findIndex((a: any) => a.id === appId)
+      if (idx !== -1) _apps.value[idx] = data
     }
   }
 
@@ -259,11 +273,17 @@ export const useApps = () => {
     return data
   }
 
+  const invalidate = () => { _lastFetched.value = 0 }
+
   return {
-    apps, folders, loading,
+    apps: _apps,
+    folders: _appFolders,
+    loading: _loading,
+    neverLoaded: computed(() => _lastFetched.value === 0),
     fetchApps, createApp, updateApp, deleteApp,
     fetchFolders, createFolder, updateFolder, renameFolder, deleteFolder,
     createShareLink, revokeShareLink, fetchSharedApp,
     recentApps, fetchRecentApps, logAppOpen, removeFromRecent,
+    invalidate,
   }
 }
