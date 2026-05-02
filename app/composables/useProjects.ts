@@ -30,7 +30,7 @@ export const useProjects = () => {
     try {
       const { data: projs, error } = await client
         .from('projects')
-        .select('id, user_id, name, color, icon, status, created_at, updated_at')
+        .select('id, user_id, name, color, icon, status, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -38,11 +38,11 @@ export const useProjects = () => {
 
       const { data: tasks } = await client
         .from('project_tasks')
-        .select('project_id, done, parent_id')
+        .select('project_id, done')
         .in('project_id', projs.map((p: any) => p.id))
 
       _projects.value = projs.map((p: any) => {
-        const pt = (tasks || []).filter((t: any) => t.project_id === p.id && !t.parent_id)
+        const pt = (tasks || []).filter((t: any) => t.project_id === p.id)
         return { ...p, totalTasks: pt.length, doneTasks: pt.filter((t: any) => t.done).length }
       })
       _lastFetched.value = Date.now()
