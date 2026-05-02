@@ -2,7 +2,7 @@
   <div class="py-4 sm:py-6" style="touch-action: manipulation" @touchend="handleTap">
 
     <!-- Header -->
-    <div class="flex items-center justify-between mb-4 sm:mb-6">
+    <div class="flex items-center justify-between mb-3 sm:mb-4">
       <h1 class="font-serif text-2xl sm:text-3xl text-vault-text">Keuangan</h1>
       <NuxtLink
         to="/finance/analytics"
@@ -10,6 +10,11 @@
       >
         Analisa
       </NuxtLink>
+    </div>
+
+    <!-- Scope switcher -->
+    <div class="mb-4">
+      <FinanceScopeSwitcher @changed="loadTransactions" />
     </div>
 
     <!-- Spending limit warnings -->
@@ -335,6 +340,7 @@ definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
 const { transactions, loading, fetchMonthTransactions, createTransaction, updateTransaction, deleteTransaction } = useFinance()
+const { currentScope, fetchScopes, updateScope, loaded: scopesLoaded } = useFinanceScopes()
 const { show: showToast } = useToast()
 
 // ── Month navigation ─────────────────────────────────────────────────���──────
@@ -402,21 +408,15 @@ const totalExpense = computed(() => transactions.value.filter(t => t.type === 'e
 const netBalance = computed(() => totalIncome.value - totalExpense.value)
 const expenseRatio = computed(() => !totalIncome.value ? 0 : Math.round((totalExpense.value / totalIncome.value) * 100))
 
-// ── Spending Limit ──────────────────────────────────────────────────────────
-const LIMIT_KEY = 'mindvault_spending_limit'
-const spendingLimit = ref<number | null>(null)
+// ── Spending Limit (per-scope, stored in finance_scopes.spending_limit) ────
+const spendingLimit = computed<number | null>(() => currentScope.value?.spending_limit ?? null)
 const limitDismissed = ref(false)
 const showLimitModal = ref(false)
 const limitFormValue = ref('')
 const limitInput = ref<HTMLInputElement | null>(null)
 
-const loadSpendingLimit = () => {
-  if (import.meta.client) {
-    const saved = localStorage.getItem(LIMIT_KEY)
-    spendingLimit.value = saved ? Number(saved) : null
-  }
-}
-loadSpendingLimit()
+// Reset dismissed warning whenever user switches scope
+watch(() => currentScope.value?.id, () => { limitDismissed.value = false })
 
 const openLimitEditor = () => {
   limitFormValue.value = spendingLimit.value ? String(spendingLimit.value) : ''
@@ -424,23 +424,18 @@ const openLimitEditor = () => {
   nextTick(() => limitInput.value?.focus())
 }
 
-const saveLimit = () => {
+const saveLimit = async () => {
+  if (!currentScope.value) return
   const val = Number(limitFormValue.value)
-  if (val > 0) {
-    spendingLimit.value = val
-    localStorage.setItem(LIMIT_KEY, String(val))
-  } else {
-    spendingLimit.value = null
-    localStorage.removeItem(LIMIT_KEY)
-  }
+  await updateScope(currentScope.value.id, { spending_limit: val > 0 ? val : null })
   limitDismissed.value = false
   showLimitModal.value = false
   showToast(val > 0 ? 'Batas pengeluaran disimpan!' : 'Batas pengeluaran dihapus')
 }
 
-const clearLimit = () => {
-  spendingLimit.value = null
-  localStorage.removeItem(LIMIT_KEY)
+const clearLimit = async () => {
+  if (!currentScope.value) return
+  await updateScope(currentScope.value.id, { spending_limit: null })
   limitDismissed.value = false
   showLimitModal.value = false
   showToast('Batas pengeluaran dihapus')
@@ -590,7 +585,12 @@ const removeTransaction = async (id: string) => {
   showToast('Transaksi dihapus')
 }
 
-watch(user, (u) => { if (u) loadTransactions() }, { immediate: true })
+watch(user, async (u) => {
+  if (u) {
+    if (!scopesLoaded.value) await fetchScopes()
+    loadTransactions()
+  }
+}, { immediate: true })
 
 // ── Back Tap shortcut via ?add=1 ────────────────────────────────────────────
 const route = useRoute()

@@ -13,6 +13,11 @@
       </div>
     </div>
 
+    <!-- Scope switcher -->
+    <div class="mb-4">
+      <FinanceScopeSwitcher @changed="reloadActiveTab" />
+    </div>
+
     <!-- Tabs -->
     <div class="flex gap-2 mb-6">
       <button
@@ -319,6 +324,8 @@
 definePageMeta({ layout: 'default' })
 
 const { fetchMonthData, fetchYearTransactions } = useFinance()
+const { fetchScopes, loaded: scopesLoaded } = useFinanceScopes()
+const user = useSupabaseUser()
 
 const loading = ref(false)
 const activeTab = ref<'monthly' | 'yearly'>('monthly')
@@ -469,6 +476,17 @@ const formatShort = (n: number) => {
 }
 const fmtShortDate = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
 
-// ── Init ────────────────────────────────────────────────────────────────────
-onMounted(() => loadMonthData())
+// ── Reload when scope changes ────────────────────────────────────────────────
+const reloadActiveTab = async () => {
+  if (activeTab.value === 'monthly') await loadMonthData()
+  else await loadYearData()
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+watch(user, async (u) => {
+  if (u) {
+    if (!scopesLoaded.value) await fetchScopes()
+    await loadMonthData()
+  }
+}, { immediate: true })
 </script>

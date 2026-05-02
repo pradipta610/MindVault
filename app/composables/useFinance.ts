@@ -1,5 +1,6 @@
 export const useFinance = () => {
   const client: any = useSupabaseClient()
+  const { currentScopeId } = useFinanceScopes()
 
   const transactions = ref<any[]>([])
   const loading = ref(false)
@@ -9,14 +10,18 @@ export const useFinance = () => {
     return user?.id ?? null
   }
 
+  // Build a base query filtered by current scope (or all scopes if null)
+  const scopedQuery = (userId: string) => {
+    let q = client.from('transactions').select('*').eq('user_id', userId)
+    if (currentScopeId.value) q = q.eq('scope_id', currentScopeId.value)
+    return q
+  }
+
   const queryMonth = async (userId: string, year: number, month: number) => {
     const start = `${year}-${String(month).padStart(2, '0')}-01`
     const lastDay = new Date(year, month, 0).getDate()
     const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-    const { data, error } = await client
-      .from('transactions')
-      .select('*')
-      .eq('user_id', userId)
+    const { data, error } = await scopedQuery(userId)
       .gte('date', start)
       .lte('date', end)
       .order('date', { ascending: false })
@@ -53,7 +58,7 @@ export const useFinance = () => {
     if (!userId) return null
     const { data, error } = await client
       .from('transactions')
-      .insert({ ...payload, user_id: userId })
+      .insert({ ...payload, user_id: userId, scope_id: currentScopeId.value })
       .select()
       .single()
     if (error) { console.error('Failed to create transaction:', error); return null }
@@ -81,10 +86,7 @@ export const useFinance = () => {
   const fetchYearTransactions = async (year: number) => {
     const userId = await getUserId()
     if (!userId) return []
-    const { data, error } = await client
-      .from('transactions')
-      .select('*')
-      .eq('user_id', userId)
+    const { data, error } = await scopedQuery(userId)
       .gte('date', `${year}-01-01`)
       .lte('date', `${year}-12-31`)
       .order('date', { ascending: true })
