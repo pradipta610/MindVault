@@ -63,7 +63,7 @@
       <!-- Finance -->
       <NuxtLink to="/finance" class="group bg-vault-card border border-vault-border rounded-xl p-4 hover:border-vault-accent/30 transition-all active:scale-[0.98]">
         <div class="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-xl mb-3">
-          �
+          💰
         </div>
         <h2 class="font-semibold text-sm text-vault-text mb-0.5">Finance</h2>
         <p class="text-[11px] text-vault-muted leading-relaxed">Pemasukan & pengeluaran</p>
