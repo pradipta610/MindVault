@@ -47,6 +47,10 @@
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-vault-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" /></svg>
         Copy URL
       </button>
+      <button @click="close(); openEditName(item)" class="w-full px-3 py-2 text-left text-sm text-vault-text hover:bg-vault-bg transition-colors flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-vault-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" /></svg>
+        Edit Nama
+      </button>
       <button @click="close(); handleRefresh(item.id)" class="w-full px-3 py-2 text-left text-sm text-vault-text hover:bg-vault-bg transition-colors flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-vault-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>
         Refresh
@@ -73,6 +77,12 @@
             class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
             @keydown.enter="handleAdd"
           />
+          <input
+            v-model="newLinkName"
+            placeholder="Nama / label (opsional)"
+            class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-2.5 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
+            @keydown.enter="handleAdd"
+          />
           <div>
             <label class="text-xs text-vault-muted font-medium mb-1.5 block">Project</label>
             <select v-model="newLinkProjectId" class="w-full bg-vault-bg border border-vault-border rounded-xl px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors">
@@ -84,6 +94,31 @@
         <div class="p-4 sm:p-5 border-t border-vault-border flex justify-end gap-2">
           <button @click="showAddModal = false" class="px-4 py-2 rounded-lg text-sm text-vault-muted hover:text-vault-text transition-colors">Batal</button>
           <button @click="handleAdd" :disabled="!newUrl.trim() || saving" class="bg-vault-accent text-vault-bg px-4 py-2 rounded-lg text-sm font-semibold hover:bg-vault-accent-dim transition-colors disabled:opacity-50">
+            {{ saving ? 'Menyimpan...' : 'Simpan' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Name Modal -->
+    <div v-if="showEditNameModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="showEditNameModal = false">
+      <div class="bg-vault-card border border-vault-border rounded-2xl w-full max-w-sm shadow-xl">
+        <div class="p-4 sm:p-5 border-b border-vault-border">
+          <h3 class="font-serif text-lg text-vault-text">Edit Nama Link</h3>
+        </div>
+        <div class="p-4 sm:p-5">
+          <input
+            ref="editNameInput"
+            v-model="editingLinkName"
+            placeholder="Nama / label (opsional)"
+            class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-3 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
+            @keydown.enter="handleEditName"
+          />
+          <p class="text-[11px] text-vault-muted mt-2">Kosongkan untuk menggunakan judul otomatis dari website.</p>
+        </div>
+        <div class="p-4 sm:p-5 border-t border-vault-border flex justify-end gap-2">
+          <button @click="showEditNameModal = false" class="px-4 py-2 rounded-lg text-sm text-vault-muted hover:text-vault-text transition-colors">Batal</button>
+          <button @click="handleEditName" :disabled="saving" class="bg-vault-accent text-vault-bg px-4 py-2 rounded-lg text-sm font-semibold hover:bg-vault-accent-dim transition-colors disabled:opacity-50">
             {{ saving ? 'Menyimpan...' : 'Simpan' }}
           </button>
         </div>
@@ -121,8 +156,15 @@ const savingText = ref('')
 // Add link modal
 const showAddModal = ref(false)
 const newUrl = ref('')
+const newLinkName = ref('')
 const newLinkProjectId = ref<string | null>(null)
 const urlInput = ref<HTMLInputElement | null>(null)
+
+// Edit name modal
+const showEditNameModal = ref(false)
+const editingLink = ref<any>(null)
+const editingLinkName = ref('')
+const editNameInput = ref<HTMLInputElement | null>(null)
 
 // ── Explorer event handlers ─────────────────────────────────────────────
 
@@ -165,6 +207,28 @@ const openLink = (link: any) => {
   window.open(link.url, '_blank', 'noopener,noreferrer')
 }
 
+const openEditName = (link: any) => {
+  editingLink.value = link
+  editingLinkName.value = link.title || ''
+  showEditNameModal.value = true
+  nextTick(() => editNameInput.value?.focus())
+}
+
+const handleEditName = async () => {
+  if (!editingLink.value) return
+  saving.value = true
+  savingText.value = 'Menyimpan...'
+  try {
+    await updateLink(editingLink.value.id, { title: editingLinkName.value.trim() || null })
+    showEditNameModal.value = false
+    showToast('Nama diperbarui!')
+  } catch {
+    showToast('Gagal menyimpan nama')
+  } finally {
+    saving.value = false
+  }
+}
+
 const handleAdd = async () => {
   let url = newUrl.value.trim()
   if (!url) return
@@ -173,8 +237,9 @@ const handleAdd = async () => {
   savingText.value = 'Mengambil preview...'
   try {
     const currentFolderId = explorerRef.value?.currentFolderId ?? null
-    await addLink(url, newLinkProjectId.value, currentFolderId)
+    await addLink(url, newLinkProjectId.value, currentFolderId, newLinkName.value.trim() || null)
     newUrl.value = ''
+    newLinkName.value = ''
     newLinkProjectId.value = null
     showAddModal.value = false
     showToast('Link disimpan!')
@@ -227,6 +292,8 @@ watch(showAddModal, (v) => {
   if (v) {
     nextTick(() => urlInput.value?.focus())
     if (!projectList.value.length) fetchProjects()
+  } else {
+    newLinkName.value = ''
   }
 })
 

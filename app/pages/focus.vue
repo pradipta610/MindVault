@@ -62,6 +62,42 @@
         </div>
       </div>
 
+      <!-- Terserah duration picker -->
+      <div v-if="selectedMethod === 'terserah'" class="bg-vault-card border border-vault-border rounded-xl p-4">
+        <label class="text-xs text-vault-muted font-medium uppercase tracking-wider block mb-3">Durasi Bebas</label>
+        <div class="flex items-center gap-2">
+          <div class="flex-1 text-center">
+            <input
+              type="number"
+              v-model.number="terserahHours"
+              min="0" max="23"
+              class="w-full bg-vault-bg border border-vault-border rounded-lg px-2 py-2 text-center text-xl font-mono font-bold text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors"
+            />
+            <span class="text-[10px] text-vault-muted block mt-1">jam</span>
+          </div>
+          <span class="text-vault-muted text-xl font-mono pb-4">:</span>
+          <div class="flex-1 text-center">
+            <input
+              type="number"
+              v-model.number="terserahMinutes"
+              min="0" max="59"
+              class="w-full bg-vault-bg border border-vault-border rounded-lg px-2 py-2 text-center text-xl font-mono font-bold text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors"
+            />
+            <span class="text-[10px] text-vault-muted block mt-1">menit</span>
+          </div>
+          <span class="text-vault-muted text-xl font-mono pb-4">:</span>
+          <div class="flex-1 text-center">
+            <input
+              type="number"
+              v-model.number="terserahSecs"
+              min="0" max="59"
+              class="w-full bg-vault-bg border border-vault-border rounded-lg px-2 py-2 text-center text-xl font-mono font-bold text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors"
+            />
+            <span class="text-[10px] text-vault-muted block mt-1">detik</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Deadline time picker (only for deadline method) -->
       <div v-if="selectedMethod === 'deadline'" class="bg-vault-card border border-vault-border rounded-xl p-4">
         <label class="text-xs text-vault-muted font-medium uppercase tracking-wider block mb-2">Deadline</label>
@@ -103,7 +139,7 @@
       <!-- Start button -->
       <button
         @click="startTimer"
-        :disabled="selectedMethod === 'deadline' && !deadlineInput"
+        :disabled="(selectedMethod === 'deadline' && !deadlineInput) || (selectedMethod === 'terserah' && (terserahHours + terserahMinutes + terserahSecs) === 0)"
         class="w-full bg-vault-accent text-vault-bg py-4 rounded-xl text-lg font-bold hover:bg-vault-accent-dim transition-colors disabled:opacity-30 active:scale-[0.98]"
       >
         Mulai Fokus
@@ -312,6 +348,9 @@ const {
   selectedMethod,
   linkedTaskId,
   deadlineInput,
+  terserahHours,
+  terserahMinutes,
+  terserahSecs,
   timerState,
   timerPhase,
   isLongBreak,
@@ -344,11 +383,12 @@ let audioElement: HTMLAudioElement | null = null
 
 // ── Methods / sounds config (view only) ───────────────────────────────
 const methods = [
-  { key: 'pomodoro' as FocusMethod, icon: '🍅', label: 'Pomodoro', desc: '25/5 min' },
-  { key: '52/17' as FocusMethod,   icon: '⏱️', label: '52/17',    desc: '52 focus, 17 break' },
-  { key: '90min' as FocusMethod,   icon: '🧱', label: '90 Min',   desc: '90 focus, 20 break' },
-  { key: 'flowtime' as FocusMethod, icon: '🌊', label: 'Flowtime', desc: 'Berhenti saat lelah' },
-  { key: 'deadline' as FocusMethod, icon: '⏳', label: 'Deadline', desc: 'Countdown ke target' },
+  { key: 'pomodoro' as FocusMethod,  icon: '🍅', label: 'Pomodoro',  desc: '25/5 min' },
+  { key: '52/17' as FocusMethod,    icon: '⏱️', label: '52/17',     desc: '52 focus, 17 break' },
+  { key: '90min' as FocusMethod,    icon: '🧱', label: '90 Min',    desc: '90 focus, 20 break' },
+  { key: 'flowtime' as FocusMethod,  icon: '🌊', label: 'Flowtime',  desc: 'Berhenti saat lelah' },
+  { key: 'deadline' as FocusMethod,  icon: '⏳', label: 'Deadline',  desc: 'Countdown ke target' },
+  { key: 'terserah' as FocusMethod,  icon: '🎯', label: 'Terserah',  desc: 'Durasi bebas' },
 ]
 
 const ambientSounds = [

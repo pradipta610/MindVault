@@ -1,12 +1,7 @@
 export default defineNuxtConfig({
   modules: ['@nuxtjs/supabase', '@nuxtjs/tailwindcss'],
   supabase: {
-    redirect: true,
-    redirectOptions: {
-      login: '/login',
-      callback: '/confirm',
-      exclude: ['/login', '/confirm', '/share/*', '/api/*']
-    },
+    redirect: false,
     clientOptions: {
       auth: {
         persistSession: true,

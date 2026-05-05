@@ -17,7 +17,11 @@
 
     <div class="p-4 cursor-pointer" @click="$emit('click')">
       <div class="flex items-start justify-between gap-3 mb-2">
-        <h3 class="font-medium text-vault-text text-sm leading-snug flex-1" v-html="highlight(stripHtml(note.title || note.raw), true)" />
+        <div v-if="note.title" class="flex-1 min-w-0 mb-1">
+          <h3 class="font-semibold text-vault-text text-sm leading-snug" v-html="highlight(note.title, true)" />
+          <p class="text-vault-muted text-xs line-clamp-2 mt-0.5" v-html="highlight(stripHtml(note.raw))" />
+        </div>
+        <h3 v-else class="font-medium text-vault-text text-sm leading-snug flex-1" v-html="highlight(stripHtml(note.raw), true)" />
         <div class="flex items-center gap-2 shrink-0">
           <span
             class="text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-0.5"
@@ -56,7 +60,7 @@
         </div>
       </div>
 
-      <p class="text-vault-muted text-xs line-clamp-2 mb-3" v-html="highlight(stripHtml(note.raw))" />
+      <p v-if="!note.title" class="text-vault-muted text-xs line-clamp-2 mb-3" v-html="highlight(stripHtml(note.raw))" />
 
       <div v-if="note.fokus" class="text-[11px] text-vault-accent/80 italic mb-2">
         {{ note.fokus }}

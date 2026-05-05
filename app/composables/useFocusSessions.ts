@@ -1,4 +1,4 @@
-export type FocusMethod = 'pomodoro' | '52/17' | '90min' | 'flowtime' | 'deadline'
+export type FocusMethod = 'pomodoro' | '52/17' | '90min' | 'flowtime' | 'deadline' | 'terserah'
 
 export interface FocusSession {
   id: string

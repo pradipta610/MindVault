@@ -14,6 +14,11 @@
       </div>
 
       <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <input
+          v-model="titleText"
+          placeholder="Judul (opsional)"
+          class="w-full bg-vault-bg border border-vault-border rounded-xl px-4 py-2.5 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors font-medium"
+        />
         <div v-if="tags.length > 0" class="flex flex-wrap gap-2">
           <button
             v-for="t in tags"
@@ -92,15 +97,10 @@
           </select>
         </div>
 
-        <div v-if="note && note.title" class="space-y-3 border-t border-vault-border pt-4">
+        <div v-if="note && (note.fokus || (note.poin && note.poin.length) || (note.action && note.action.length))" class="space-y-3 border-t border-vault-border pt-4">
           <div class="flex items-center gap-2">
             <div class="w-1.5 h-1.5 rounded-full bg-vault-accent" />
             <span class="text-xs font-semibold text-vault-accent uppercase tracking-wider">AI Summary</span>
-          </div>
-
-          <div v-if="note.title" class="bg-vault-bg rounded-lg p-3">
-            <p class="text-xs text-vault-muted mb-1">Judul</p>
-            <p class="text-sm text-vault-text font-medium">{{ note.title }}</p>
           </div>
 
           <div v-if="note.fokus" class="bg-vault-bg rounded-lg p-3">
@@ -170,6 +170,7 @@ const { uploadInlineImage } = useNoteImages()
 const { projects, fetchProjects } = useProjects()
 const { isSupported: speechSupported, isListening: speechActive, fullTranscript: speechFull, start: speechStart, stop: speechStop, toggle: speechToggle } = useSpeechRecognition()
 const tags = categoryNames
+const titleText = ref(props.note?.title || '')
 const rawText = ref(props.note?.raw || props.initialRaw || '')
 const selectedTag = ref(props.note?.tag || props.initialTag || categoryNames.value[0] || '')
 const selectedProjectId = ref<string | null>(props.note?.project_id || props.initialProjectId || null)
@@ -213,6 +214,7 @@ const save = () => {
     tag: selectedTag.value,
     reminderAt: reminderAt.value ? new Date(reminderAt.value).toISOString() : null,
     projectId: selectedProjectId.value,
+    title: titleText.value.trim() || null,
   })
 }
 

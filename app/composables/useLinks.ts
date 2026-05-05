@@ -72,7 +72,7 @@ export const useLinks = () => {
     return { title: null, description: null, image: null, favicon: null }
   }
 
-  const addLink = async (url: string, projectId?: string | null, folderId?: string | null) => {
+  const addLink = async (url: string, projectId?: string | null, folderId?: string | null, customName?: string | null) => {
     const userId = await getUserId()
     if (!userId) throw new Error('Not authenticated')
 
@@ -81,7 +81,7 @@ export const useLinks = () => {
     const insert: Record<string, any> = {
       user_id: userId,
       url,
-      title: meta.title,
+      title: customName?.trim() || meta.title,
       description: meta.description,
       image: meta.image,
       favicon: meta.favicon,
@@ -103,7 +103,7 @@ export const useLinks = () => {
     return data
   }
 
-  const updateLink = async (id: string, payload: { folder_id?: string | null }) => {
+  const updateLink = async (id: string, payload: { folder_id?: string | null; title?: string | null }) => {
     const { data, error } = await client
       .from('links')
       .update(payload)

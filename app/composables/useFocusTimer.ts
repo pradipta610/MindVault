@@ -14,6 +14,9 @@ const methodConfigs: Record<string, { focus: number; shortBreak: number; longBre
 const selectedMethod = ref<FocusMethod>('pomodoro')
 const linkedTaskId = ref<string | null>(null)
 const deadlineInput = ref('')
+const terserahHours = ref(0)
+const terserahMinutes = ref(25)
+const terserahSecs = ref(0)
 const timerState = ref<'idle' | 'running' | 'paused'>('idle')
 const timerPhase = ref<'focus' | 'break'>('focus')
 const isLongBreak = ref(false)
@@ -124,6 +127,13 @@ export const useFocusTimer = () => {
         return
       }
       secondsRemaining.value = diff
+    } else if (selectedMethod.value === 'terserah') {
+      const total = terserahHours.value * 3600 + terserahMinutes.value * 60 + terserahSecs.value
+      if (total <= 0) {
+        toastFn?.('Atur durasi dulu!')
+        return
+      }
+      secondsRemaining.value = total
     } else {
       const cfg = methodConfigs[selectedMethod.value]
       secondsRemaining.value = cfg?.focus ?? 25 * 60
@@ -193,6 +203,9 @@ export const useFocusTimer = () => {
     selectedMethod,
     linkedTaskId,
     deadlineInput,
+    terserahHours,
+    terserahMinutes,
+    terserahSecs,
     timerState,
     timerPhase,
     isLongBreak,
