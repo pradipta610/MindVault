@@ -533,7 +533,7 @@ const loadStats = async () => {
     const d = new Date(ws.started_at)
     let idx = d.getDay() - 1
     if (idx < 0) idx = 6
-    dayMinutes[idx] += ws.duration_minutes
+    dayMinutes[idx]! += ws.duration_minutes
   }
 
   const maxM = Math.max(...dayMinutes, 1)
