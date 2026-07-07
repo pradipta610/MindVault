@@ -102,21 +102,19 @@
     <template v-else>
       <!-- ═══ Desktop (≥768px): table view ═══ -->
       <div class="hidden md:block">
-        <div v-if="sortedTasks.length === 0" class="text-center py-12">
-          <p class="text-vault-muted text-sm">{{ emptyMessage }}</p>
-        </div>
         <TodoTable
-          v-else
           :tasks="sortedTasks"
           :fields="taskFields"
           :sort-field="sortField"
           :sort-dir="sortDir"
           :category-names="categories"
+          :empty-message="emptyMessage"
           @sort="handleSort"
           @row-click="openTask"
           @toggle-done="(id) => handleToggle(id, true)"
           @cell-update="handleCellUpdate"
           @add-field="manageFieldsRef?.openCreate()"
+          @quick-add="handleQuickAdd"
         />
       </div>
 
@@ -327,6 +325,19 @@ const openNewTask = () => {
 const openTask = (task: any) => {
   editingTask.value = task
   showTaskModal.value = true
+}
+
+// ── Quick-add (inline row in table) ───────────────────────────────────────
+const handleQuickAdd = async (text: string) => {
+  try {
+    await createTask({
+      text,
+      cat: activeCat.value !== 'all' ? activeCat.value : null,
+      date: dateFilter.value || todayStr,
+    })
+  } catch (e) {
+    showToast('Gagal menambah task')
+  }
 }
 
 // ── Toggle (mark as done → backlog) ──────────────────────────────────────

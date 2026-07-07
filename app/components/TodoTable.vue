@@ -23,7 +23,7 @@
           />
           <div class="px-2 py-2.5 flex justify-center">
             <button
-              @click="$emit('add-field')"
+              @click.stop="$emit('add-field')"
               class="w-6 h-6 rounded flex items-center justify-center text-vault-muted hover:text-vault-accent hover:bg-vault-accent/10 transition-colors"
               title="Tambah kolom"
             >
@@ -178,6 +178,38 @@
             </button>
           </div>
         </div>
+
+        <!-- Empty state -->
+        <div v-if="tasks.length === 0" class="px-4 py-8 text-center text-sm text-vault-muted">
+          {{ emptyMessage }}
+        </div>
+
+        <!-- Quick-add row -->
+        <div class="grid items-center" :style="{ gridTemplateColumns }">
+          <div class="px-3 py-2.5"></div>
+          <div class="px-3 py-2 min-w-0">
+            <input
+              v-if="addingRow"
+              ref="newRowInputEl"
+              v-model="newRowText"
+              placeholder="Nama task baru, Enter untuk simpan"
+              @keydown.enter="commitNewRow"
+              @keydown.esc="cancelAddRow"
+              @blur="handleNewRowBlur"
+              class="w-full bg-transparent text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none"
+            />
+            <button
+              v-else
+              @click="startAddRow"
+              class="flex items-center gap-1.5 text-sm text-vault-muted hover:text-vault-accent transition-colors py-0.5"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Tambah task
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -190,6 +222,7 @@ const props = defineProps<{
   sortField: string | null
   sortDir: 'asc' | 'desc' | null
   categoryNames: string[]
+  emptyMessage: string
 }>()
 
 const emit = defineEmits<{
@@ -198,6 +231,7 @@ const emit = defineEmits<{
   (e: 'toggle-done', taskId: string): void
   (e: 'cell-update', taskId: string, updates: Record<string, any>): void
   (e: 'add-field'): void
+  (e: 'quick-add', text: string): void
 }>()
 
 const { getCategoryColor, getCategoryIcon } = useCategories()
@@ -267,4 +301,32 @@ const handleClickOutside = (e: MouseEvent) => {
 }
 onMounted(() => document.addEventListener('click', handleClickOutside))
 onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
+
+// ── Quick-add row ─────────────────────────────────────────────────────────
+const addingRow = ref(false)
+const newRowText = ref('')
+const newRowInputEl = ref<HTMLInputElement | null>(null)
+
+const startAddRow = () => {
+  addingRow.value = true
+  nextTick(() => newRowInputEl.value?.focus())
+}
+
+const commitNewRow = () => {
+  const trimmed = newRowText.value.trim()
+  if (!trimmed) return
+  emit('quick-add', trimmed)
+  newRowText.value = ''
+  nextTick(() => newRowInputEl.value?.focus())
+}
+
+const handleNewRowBlur = () => {
+  commitNewRow()
+  if (!newRowText.value.trim()) addingRow.value = false
+}
+
+const cancelAddRow = () => {
+  newRowText.value = ''
+  addingRow.value = false
+}
 </script>
