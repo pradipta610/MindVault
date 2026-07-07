@@ -32,7 +32,7 @@ export const useTasks = () => {
     try {
       const { data, error } = await client
         .from('tasks')
-        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, created_at')
+        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, custom_fields, created_at')
         .eq('user_id', userId)
         .eq('date', date)
         .eq('done', false)
@@ -75,13 +75,14 @@ export const useTasks = () => {
     try {
       const { data, error } = await client
         .from('tasks')
-        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, created_at')
+        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, custom_fields, created_at')
         .eq('user_id', userId)
         .eq('done', false)
         .order('date', { ascending: true })
         .order('created_at', { ascending: true })
       if (error) throw error
       _tasks.value = data || []
+      _lastFetched.value = Date.now()
     } catch (e) {
       console.error('Failed to fetch all tasks:', e)
     } finally {
@@ -117,7 +118,7 @@ export const useTasks = () => {
     }
   }
 
-  const createTask = async (task: { text: string; cat: string | null; date: string; images?: string[] | null; deadline_at?: string | null }) => {
+  const createTask = async (task: { text: string; cat: string | null; date: string; images?: string[] | null; deadline_at?: string | null; custom_fields?: Record<string, any> }) => {
     const userId = await getUserId()
     if (!userId) return null
     const insert: Record<string, any> = {
@@ -128,6 +129,7 @@ export const useTasks = () => {
     }
     if (task.images && task.images.length > 0) insert.images = task.images
     if (task.deadline_at) insert.deadline_at = task.deadline_at
+    if (task.custom_fields && Object.keys(task.custom_fields).length > 0) insert.custom_fields = task.custom_fields
     const { data, error } = await client
       .from('tasks')
       .insert(insert)

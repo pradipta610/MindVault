@@ -123,6 +123,45 @@
           <p v-if="deadlineAt" class="text-[11px] text-vault-muted mt-1.5">Notifikasi pengingat akan dikirim pada waktu ini.</p>
         </div>
 
+        <!-- Custom fields -->
+        <div v-if="taskFields.length" class="border-t border-vault-border pt-4 space-y-3">
+          <label class="block text-xs text-vault-muted font-medium">Kolom Tambahan</label>
+          <div v-for="f in taskFields" :key="f.id">
+            <p class="text-[11px] text-vault-muted mb-1">{{ f.label }}</p>
+            <input
+              v-if="f.type === 'text'"
+              v-model="customFieldValues[f.key]"
+              class="w-full bg-vault-bg border border-vault-border rounded-lg px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors"
+            />
+            <input
+              v-else-if="f.type === 'number'"
+              type="number"
+              v-model.number="customFieldValues[f.key]"
+              class="w-full bg-vault-bg border border-vault-border rounded-lg px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors"
+            />
+            <input
+              v-else-if="f.type === 'date'"
+              type="date"
+              v-model="customFieldValues[f.key]"
+              class="w-full bg-vault-bg border border-vault-border rounded-lg px-3 py-2 text-sm text-vault-text focus:outline-none focus:border-vault-accent/30 transition-colors"
+            />
+            <label v-else-if="f.type === 'checkbox'" class="flex items-center gap-2 text-sm text-vault-text">
+              <input type="checkbox" v-model="customFieldValues[f.key]" class="w-4 h-4" />
+              Aktif
+            </label>
+            <div v-else-if="f.type === 'select'" class="flex flex-wrap gap-2">
+              <button
+                v-for="opt in f.options"
+                :key="opt.value"
+                @click="customFieldValues[f.key] = opt.value"
+                class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
+                :class="customFieldValues[f.key] === opt.value ? 'border-transparent' : 'bg-transparent border-vault-border text-vault-muted hover:text-vault-text'"
+                :style="customFieldValues[f.key] === opt.value ? { backgroundColor: opt.color + '33', color: opt.color } : {}"
+              >{{ opt.label }}</button>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <div class="p-4 border-t border-vault-border flex gap-2">
@@ -155,7 +194,10 @@ const props = defineProps<{
   initialCat?: string
   initialDate?: string
   initialImages?: string[]
+  taskFields?: any[]
 }>()
+
+const taskFields = computed(() => props.taskFields || [])
 
 const emit = defineEmits(['close', 'save'])
 
@@ -189,6 +231,8 @@ const toLocalInput = (iso: string | null | undefined): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 const deadlineAt = ref(toLocalInput(props.task?.deadline_at))
+
+const customFieldValues = reactive<Record<string, any>>({ ...(props.task?.custom_fields || {}) })
 
 const existingImages = ref<string[]>([...(props.task?.images || props.initialImages || [])])
 const removedImages = ref<string[]>([])
@@ -235,6 +279,7 @@ const save = () => {
     existingImages: existingImages.value,
     removedImages: removedImages.value,
     deadlineAt: deadlineAt.value ? new Date(deadlineAt.value).toISOString() : null,
+    customFields: { ...customFieldValues },
   })
 }
 
