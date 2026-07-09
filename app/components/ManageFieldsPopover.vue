@@ -131,7 +131,7 @@ const moveField = async (id: string, direction: -1 | 1) => {
 }
 
 const handleClickOutside = (e: MouseEvent) => {
-  if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
+  if (containerRef.value && !e.composedPath().includes(containerRef.value)) {
     open.value = false
     mode.value = 'list'
     emit('close')
