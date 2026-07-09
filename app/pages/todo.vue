@@ -232,26 +232,96 @@
     <Transition name="slide-up">
       <div
         v-if="selectMode && selectedIds.size > 0"
-        class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-vault-card border border-vault-border rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 flex-wrap"
+        class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-vault-card border border-vault-border rounded-2xl shadow-xl px-4 py-3 flex items-center gap-2 flex-wrap max-w-[calc(100vw-2rem)]"
       >
-        <span class="text-xs font-medium text-vault-muted">{{ selectedIds.size }} dipilih</span>
+        <span class="text-xs font-medium text-vault-muted shrink-0">{{ selectedIds.size }} dipilih</span>
+        <div class="w-px h-4 bg-vault-border shrink-0" />
+
+        <!-- Mark done -->
+        <button
+          @click="handleBulkMarkDone"
+          class="text-xs bg-green-500/10 text-green-500 border border-green-500/20 rounded-lg px-3 py-1.5 hover:bg-green-500/20 transition-colors shrink-0"
+        >✓ Selesai</button>
+
+        <!-- Category -->
         <select
           @change="handleBulkChangeCat(($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
           class="text-xs bg-vault-bg border border-vault-border rounded-lg px-2 py-1.5 text-vault-text focus:outline-none"
         >
-          <option value="">Ganti Kategori...</option>
+          <option value="">Kategori...</option>
           <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
         </select>
-        <input
-          type="date"
-          @change="handleBulkChangeDate(($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = ''"
-          class="text-xs bg-vault-bg border border-vault-border rounded-lg px-2 py-1.5 text-vault-text focus:outline-none"
-        />
+
+        <!-- Date -->
+        <div class="relative">
+          <span class="text-[10px] text-vault-muted absolute -top-2 left-1 bg-vault-card px-0.5">Tanggal</span>
+          <input
+            type="date"
+            @change="handleBulkChangeDate(($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = ''"
+            class="text-xs bg-vault-bg border border-vault-border rounded-lg px-2 py-1.5 text-vault-text focus:outline-none"
+          />
+        </div>
+
+        <!-- Deadline -->
+        <div class="relative">
+          <span class="text-[10px] text-vault-muted absolute -top-2 left-1 bg-vault-card px-0.5">Deadline</span>
+          <input
+            type="datetime-local"
+            @change="handleBulkChangeDeadline(($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = ''"
+            class="text-xs bg-vault-bg border border-vault-border rounded-lg px-2 py-1.5 text-vault-text focus:outline-none"
+          />
+        </div>
+
+        <!-- Custom fields -->
+        <template v-for="f in taskFields" :key="f.id">
+          <div v-if="f.type === 'select'" class="relative">
+            <span class="text-[10px] text-vault-muted absolute -top-2 left-1 bg-vault-card px-0.5 truncate max-w-[80px]">{{ f.label }}</span>
+            <select
+              @change="handleBulkChangeCustomField(f.key, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
+              class="text-xs bg-vault-bg border border-vault-border rounded-lg px-2 py-1.5 text-vault-text focus:outline-none"
+            >
+              <option value="">{{ f.label }}...</option>
+              <option v-for="opt in f.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </select>
+          </div>
+          <div v-else-if="f.type === 'checkbox'" class="relative">
+            <button
+              @click="handleBulkChangeCustomField(f.key, true)"
+              class="text-xs bg-vault-bg border border-vault-border rounded-lg px-3 py-1.5 text-vault-muted hover:text-vault-accent transition-colors"
+            >{{ f.label }} ✓</button>
+          </div>
+          <div v-else-if="f.type === 'date'" class="relative">
+            <span class="text-[10px] text-vault-muted absolute -top-2 left-1 bg-vault-card px-0.5 truncate max-w-[80px]">{{ f.label }}</span>
+            <input
+              type="date"
+              @change="handleBulkChangeCustomField(f.key, ($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = ''"
+              class="text-xs bg-vault-bg border border-vault-border rounded-lg px-2 py-1.5 text-vault-text focus:outline-none"
+            />
+          </div>
+          <div v-else-if="f.type === 'text' || f.type === 'number'" class="relative">
+            <span class="text-[10px] text-vault-muted absolute -top-2 left-1 bg-vault-card px-0.5 truncate max-w-[80px]">{{ f.label }}</span>
+            <input
+              :type="f.type === 'number' ? 'number' : 'text'"
+              :placeholder="f.label + '...'"
+              @keydown.enter="handleBulkChangeCustomField(f.key, ($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = ''"
+              class="text-xs bg-vault-bg border border-vault-border rounded-lg px-2 py-1.5 text-vault-text focus:outline-none w-28"
+            />
+          </div>
+        </template>
+
+        <div class="w-px h-4 bg-vault-border shrink-0" />
+
+        <!-- Delete -->
         <button
           @click="handleBulkDelete"
-          class="text-xs bg-red-500/10 text-red-400 border border-red-400/20 rounded-lg px-3 py-1.5 hover:bg-red-500/20 transition-colors"
+          class="text-xs bg-red-500/10 text-red-400 border border-red-400/20 rounded-lg px-3 py-1.5 hover:bg-red-500/20 transition-colors shrink-0"
         >Hapus ke Backlog</button>
-        <button @click="clearSelection" class="text-xs text-vault-muted hover:text-vault-text transition-colors">✕</button>
+
+        <button @click="clearSelection" class="text-vault-muted hover:text-vault-text transition-colors shrink-0 ml-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
     </Transition>
   </Teleport>
@@ -327,9 +397,7 @@ const handleReorder = (newIds: string[]) => {
 
 const mobileDoneExpanded = ref(false)
 
-// Bulk actions (show popover via refs)
-const bulkCatRef = ref<HTMLSelectElement | null>(null)
-const bulkDateRef = ref<HTMLInputElement | null>(null)
+// Bulk actions
 const handleBulkChangeCat = async (cat: string) => {
   if (!cat) return
   for (const id of selectedIds.value) await updateTask(id, { cat: cat || null })
@@ -341,6 +409,31 @@ const handleBulkChangeDate = async (date: string) => {
   for (const id of selectedIds.value) await updateTask(id, { date })
   clearSelection()
   showToast('Tanggal diubah')
+}
+const handleBulkChangeDeadline = async (val: string) => {
+  if (!val) return
+  const iso = new Date(val).toISOString()
+  for (const id of selectedIds.value) await updateTask(id, { deadline_at: iso })
+  clearSelection()
+  showToast('Deadline diubah')
+}
+const handleBulkMarkDone = async () => {
+  for (const id of selectedIds.value) {
+    cancel(`task-deadline-${id}`)
+    await markTaskDone(id)
+  }
+  clearSelection()
+  showToast('Task ditandai selesai')
+}
+const handleBulkChangeCustomField = async (key: string, value: any) => {
+  if (value === '' || value === null || value === undefined) return
+  for (const id of selectedIds.value) {
+    const task = tasks.value.find((t: any) => t.id === id)
+    if (!task) continue
+    await updateTask(id, { custom_fields: { ...(task.custom_fields || {}), [key]: value } })
+  }
+  clearSelection()
+  showToast('Field diubah')
 }
 const handleBulkDelete = async () => {
   for (const id of selectedIds.value) {

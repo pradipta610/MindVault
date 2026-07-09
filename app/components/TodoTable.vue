@@ -327,22 +327,35 @@
                   </svg>
                 </button>
               </div>
-              <!-- Cells (read-only) -->
+              <!-- Cells (read-only, same style as active rows) -->
               <template v-for="col in visibleCols" :key="col.id">
                 <div v-if="col.id === 'text'" class="px-3 py-2.5 min-w-0">
                   <p class="text-sm text-vault-muted truncate line-through">{{ plainText(task.text) }}</p>
                 </div>
                 <div v-else-if="col.id === 'cat'" class="px-2 py-2">
                   <span
-                    v-if="task.cat"
-                    class="text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1 opacity-70"
-                    :style="{ backgroundColor: getCategoryColor(task.cat) + '22', color: getCategoryColor(task.cat) }"
-                  >{{ task.cat }}</span>
+                    class="text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1 max-w-full truncate"
+                    :style="{ backgroundColor: getCategoryColor(task.cat) + '33', color: getCategoryColor(task.cat) }"
+                  >
+                    <span class="text-[9px]">{{ getCategoryIcon(task.cat) }}</span>
+                    <span class="truncate">{{ task.cat || 'uncategorized' }}</span>
+                  </span>
                 </div>
                 <div v-else-if="col.id === 'date'" class="px-2 py-2">
-                  <span class="text-xs text-vault-muted/50">{{ task.date }}</span>
+                  <span class="text-xs text-vault-muted/60">{{ task.date }}</span>
                 </div>
-                <div v-else class="px-2 py-2" />
+                <div v-else-if="col.id === 'deadline_at'" class="px-2 py-2">
+                  <span v-if="task.deadline_at" class="text-xs text-vault-muted/60">{{ toLocalInput(task.deadline_at).replace('T', ' ').slice(0, 16) }}</span>
+                </div>
+                <div v-else class="px-2 py-2">
+                  <template v-for="f in [fieldsMap[col.id]]" :key="f?.id">
+                    <span v-if="f && task.custom_fields?.[f.key] !== undefined && task.custom_fields?.[f.key] !== ''" class="text-xs text-vault-muted/60">
+                      <template v-if="f.type === 'select'">{{ selectOptionLabel(f, task.custom_fields[f.key]) }}</template>
+                      <template v-else-if="f.type === 'checkbox'">{{ task.custom_fields[f.key] ? '✓' : '' }}</template>
+                      <template v-else>{{ task.custom_fields[f.key] }}</template>
+                    </span>
+                  </template>
+                </div>
               </template>
               <!-- Done row actions -->
               <div class="px-2 py-2 flex items-center justify-center gap-1">
