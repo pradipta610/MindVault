@@ -1,5 +1,6 @@
 // Module-level singletons — persist across page navigations
 const _tasks = ref<any[]>([])
+const _doneTasks = ref<any[]>([])
 const _loading = ref(false)
 const _cachedDate = ref<string | null>(null)
 const _lastFetched = ref(0)
@@ -194,20 +195,88 @@ export const useTasks = () => {
     _tasks.value = _tasks.value.filter((t: any) => t.id !== id)
   }
 
+  // Fetch done tasks (stay in tasks table with done=true)
+  const fetchDoneTasks = async () => {
+    const userId = await getUserId()
+    if (!userId) return
+    try {
+      const { data, error } = await client
+        .from('tasks')
+        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, custom_fields, created_at')
+        .eq('user_id', userId)
+        .eq('done', true)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      _doneTasks.value = data || []
+    } catch (e) {
+      console.error('Failed to fetch done tasks:', e)
+    }
+  }
+
+  // Mark done — stays in tasks table, does NOT archive to backlog
+  const markTaskDone = async (id: string) => {
+    const { data, error } = await client
+      .from('tasks')
+      .update({ done: true })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    const task = _tasks.value.find((t: any) => t.id === id)
+    _tasks.value = _tasks.value.filter((t: any) => t.id !== id)
+    if (task) _doneTasks.value.unshift({ ...task, done: true, ...(data || {}) })
+  }
+
+  // Restore done task back to active
+  const markTaskUndone = async (id: string) => {
+    const { data, error } = await client
+      .from('tasks')
+      .update({ done: false })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    const task = _doneTasks.value.find((t: any) => t.id === id)
+    _doneTasks.value = _doneTasks.value.filter((t: any) => t.id !== id)
+    if (task) _tasks.value.push({ ...task, done: false, ...(data || {}) })
+  }
+
+  // Archive done task to backlog then delete from tasks
+  const archiveAndRemoveDone = async (task: any) => {
+    const { archiveTask } = useBacklog()
+    await archiveTask(task)
+    const { error } = await client.from('tasks').delete().eq('id', task.id)
+    if (error) throw error
+    _doneTasks.value = _doneTasks.value.filter((t: any) => t.id !== task.id)
+  }
+
+  // Permanently delete done task (no backlog)
+  const purgeDoneTask = async (id: string) => {
+    const { error } = await client.from('tasks').delete().eq('id', id)
+    if (error) throw error
+    _doneTasks.value = _doneTasks.value.filter((t: any) => t.id !== id)
+  }
+
   const invalidate = () => { _lastFetched.value = 0 }
 
   return {
     tasks: _tasks,
+    doneTasks: _doneTasks,
     loading: _loading,
     neverLoaded: computed(() => _lastFetched.value === 0),
     fetchTasksForDate,
     fetchTasksForRange,
     fetchAllPending,
+    fetchDoneTasks,
     rolloverTasks,
     createTask,
     updateTask,
     completeTask,
     deleteTask,
+    markTaskDone,
+    markTaskUndone,
+    archiveAndRemoveDone,
+    purgeDoneTask,
     invalidate,
   }
 }

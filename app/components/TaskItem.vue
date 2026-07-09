@@ -1,6 +1,7 @@
 <template>
   <div
     class="bg-vault-card border border-vault-border rounded-xl overflow-hidden hover:border-vault-accent/20 group relative"
+    :class="selected ? 'ring-2 ring-vault-accent border-vault-accent/40' : ''"
     :style="{ transition: 'box-shadow 0.4s ease, background-color 0.3s ease, border-color 0.3s ease' }"
   >
     <!-- Photo thumbnails — accordion expand -->
@@ -46,7 +47,7 @@
       </div>
     </div>
 
-    <div class="p-4 cursor-pointer" @click="$emit('click')">
+    <div class="p-4 cursor-pointer" @click="selectMode ? $emit('select', task.id) : $emit('click')">
       <div class="flex items-start justify-between gap-3 mb-2">
         <div class="flex items-start gap-3 flex-1 min-w-0">
           <!-- Done toggle -->
@@ -133,8 +134,8 @@
 <script setup lang="ts">
 import DOMPurify from 'dompurify'
 
-const props = defineProps<{ task: any; searchQuery?: string }>()
-const emit = defineEmits(['toggle', 'delete', 'toNote', 'click'])
+const props = defineProps<{ task: any; searchQuery?: string; selectMode?: boolean; selected?: boolean }>()
+const emit = defineEmits(['toggle', 'delete', 'toNote', 'click', 'select'])
 
 const { getCategoryColor, getCategoryIcon, getCategoryLabel } = useCategories()
 const showActions = ref(false)
@@ -180,13 +181,15 @@ const highlight = (text: string) => {
 }
 
 const taskActionItems = [
+  { id: 'edit', label: 'Edit Task', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-vault-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /></svg>' },
   { id: 'toNote', label: 'Jadikan Note', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-vault-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>' },
-  { id: 'delete', label: 'Hapus', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>', destructive: true },
+  { id: 'delete', label: 'Hapus ke Backlog', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>', destructive: true },
 ]
 
 const handleActionSelect = (id: string) => {
   showActions.value = false
-  if (id === 'toNote') emit('toNote')
+  if (id === 'edit') emit('click')
+  else if (id === 'toNote') emit('toNote')
   else if (id === 'delete') emit('delete')
 }
 </script>

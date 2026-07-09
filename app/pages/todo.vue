@@ -4,6 +4,17 @@
     <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
       <h2 class="font-serif text-2xl sm:text-3xl text-vault-text">To-Do</h2>
       <div class="flex items-center gap-1.5">
+        <!-- Multi-select toggle -->
+        <button
+          @click="toggleSelectMode"
+          class="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
+          :class="selectMode ? 'bg-vault-accent/20 text-vault-accent' : 'text-vault-muted hover:text-vault-text hover:bg-vault-bg'"
+          title="Pilih banyak"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+        </button>
         <!-- Search toggle -->
         <button
           @click="showSearch = !showSearch"
@@ -104,23 +115,32 @@
       <div class="hidden md:block">
         <TodoTable
           :tasks="sortedTasks"
+          :done-tasks="filteredDoneTasks"
           :fields="taskFields"
           :sort-field="sortField"
           :sort-dir="sortDir"
           :category-names="categories"
           :empty-message="emptyMessage"
+          :select-mode="selectMode"
+          :selected-ids="selectedIds"
           @sort="handleSort"
           @row-click="openTask"
-          @toggle-done="(id) => handleToggle(id, true)"
+          @toggle-done="handleToggle"
           @cell-update="handleCellUpdate"
           @add-field="manageFieldsRef?.openCreate()"
           @quick-add="handleQuickAdd"
+          @toggle-select="handleToggleSelect"
+          @toggle-select-all="handleToggleSelectAll"
+          @reorder="handleReorder"
+          @uncheck-done="handleUncheckDone"
+          @archive-done="handleArchiveDone"
+          @delete-done="handleDeleteDone"
         />
       </div>
 
       <!-- ═══ Mobile (<768px): card list ═══ -->
       <div class="md:hidden">
-        <div v-if="sortedTasks.length === 0" class="text-center py-12 pb-24">
+        <div v-if="sortedTasks.length === 0 && filteredDoneTasks.length === 0" class="text-center py-12 pb-24">
           <p class="text-vault-muted text-sm">{{ emptyMessage }}</p>
         </div>
         <div v-else class="space-y-2 pb-24">
@@ -129,11 +149,51 @@
             :key="task.id"
             :task="task"
             :search-query="searchQuery"
+            :select-mode="selectMode"
+            :selected="selectedIds.has(task.id)"
             @click="openTask(task)"
-            @toggle="handleToggle(task.id, !task.done)"
+            @toggle="handleToggle(task.id)"
             @delete="handleDeleteTask(task.id)"
             @to-note="handleToNote(task)"
+            @select="handleToggleSelect(task.id)"
           />
+
+          <!-- Mobile done section -->
+          <template v-if="filteredDoneTasks.length > 0">
+            <button
+              class="w-full text-left px-4 py-2.5 flex items-center justify-between bg-vault-card border border-vault-border rounded-xl"
+              @click="mobileDoneExpanded = !mobileDoneExpanded"
+            >
+              <span class="text-xs font-medium text-vault-muted flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-green-500/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+                Selesai ({{ filteredDoneTasks.length }})
+              </span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-vault-muted transition-transform" :class="mobileDoneExpanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+            <template v-if="mobileDoneExpanded">
+              <div
+                v-for="task in filteredDoneTasks"
+                :key="task.id"
+                class="bg-vault-card border border-vault-border rounded-xl p-3 flex items-center gap-3 opacity-60"
+              >
+                <button @click="handleUncheckDone(task.id)" class="w-5 h-5 rounded-full border-2 bg-vault-accent border-vault-accent flex items-center justify-center shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-vault-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </button>
+                <p class="text-sm text-vault-muted line-through flex-1 truncate">{{ (task.text || '').replace(/<[^>]*>/g, '').trim() }}</p>
+                <button @click="handleArchiveDone(task)" class="text-vault-muted hover:text-vault-accent transition-colors p-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                  </svg>
+                </button>
+              </div>
+            </template>
+          </template>
         </div>
 
         <!-- FAB -->
@@ -167,6 +227,33 @@
         <p class="text-sm text-vault-text font-medium">{{ savingText }}</p>
       </div>
     </div>
+
+    <!-- Bulk action bar -->
+    <Transition name="slide-up">
+      <div
+        v-if="selectMode && selectedIds.size > 0"
+        class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-vault-card border border-vault-border rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 flex-wrap"
+      >
+        <span class="text-xs font-medium text-vault-muted">{{ selectedIds.size }} dipilih</span>
+        <select
+          @change="handleBulkChangeCat(($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
+          class="text-xs bg-vault-bg border border-vault-border rounded-lg px-2 py-1.5 text-vault-text focus:outline-none"
+        >
+          <option value="">Ganti Kategori...</option>
+          <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
+        </select>
+        <input
+          type="date"
+          @change="handleBulkChangeDate(($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = ''"
+          class="text-xs bg-vault-bg border border-vault-border rounded-lg px-2 py-1.5 text-vault-text focus:outline-none"
+        />
+        <button
+          @click="handleBulkDelete"
+          class="text-xs bg-red-500/10 text-red-400 border border-red-400/20 rounded-lg px-3 py-1.5 hover:bg-red-500/20 transition-colors"
+        >Hapus ke Backlog</button>
+        <button @click="clearSelection" class="text-xs text-vault-muted hover:text-vault-text transition-colors">✕</button>
+      </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -174,7 +261,7 @@
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
-const { tasks, loading, neverLoaded, fetchAllPending, fetchTasksForRange, rolloverTasks, createTask, updateTask, completeTask, deleteTask } = useTasks()
+const { tasks, doneTasks, loading, neverLoaded, fetchAllPending, fetchTasksForRange, fetchDoneTasks, rolloverTasks, createTask, updateTask, completeTask, markTaskDone, markTaskUndone, archiveAndRemoveDone, purgeDoneTask, deleteTask } = useTasks()
 const { createNote, updateNote } = useNotes()
 const { uploadImages, deleteImage } = useNoteImages()
 const { show: showToast } = useToast()
@@ -204,9 +291,84 @@ const calendarPopoverRef = ref<HTMLElement | null>(null)
 const sortField = ref<string | null>(null)
 const sortDir = ref<'asc' | 'desc' | null>(null)
 
+// Multi-select
+const selectMode = ref(false)
+const selectedIds = ref(new Set<string>())
+const clearSelection = () => { selectedIds.value = new Set() }
+const toggleSelectMode = () => {
+  selectMode.value = !selectMode.value
+  if (!selectMode.value) clearSelection()
+}
+const handleToggleSelect = (id: string) => {
+  const next = new Set(selectedIds.value)
+  if (next.has(id)) next.delete(id); else next.add(id)
+  selectedIds.value = next
+}
+const handleToggleSelectAll = () => {
+  if (selectedIds.value.size === sortedTasks.value.length) {
+    selectedIds.value = new Set()
+  } else {
+    selectedIds.value = new Set(sortedTasks.value.map((t: any) => t.id))
+  }
+}
+
+// Row drag order
+const taskOrder = ref<string[]>([])
+onMounted(() => {
+  taskOrder.value = JSON.parse(localStorage.getItem('mv_task_order') || '[]')
+})
+
+const handleReorder = (newIds: string[]) => {
+  const visibleSet = new Set(newIds)
+  const others = taskOrder.value.filter(id => !visibleSet.has(id))
+  taskOrder.value = [...newIds, ...others]
+  localStorage.setItem('mv_task_order', JSON.stringify(taskOrder.value))
+}
+
+const mobileDoneExpanded = ref(false)
+
+// Bulk actions (show popover via refs)
+const bulkCatRef = ref<HTMLSelectElement | null>(null)
+const bulkDateRef = ref<HTMLInputElement | null>(null)
+const handleBulkChangeCat = async (cat: string) => {
+  if (!cat) return
+  for (const id of selectedIds.value) await updateTask(id, { cat: cat || null })
+  clearSelection()
+  showToast('Kategori diubah')
+}
+const handleBulkChangeDate = async (date: string) => {
+  if (!date) return
+  for (const id of selectedIds.value) await updateTask(id, { date })
+  clearSelection()
+  showToast('Tanggal diubah')
+}
+const handleBulkDelete = async () => {
+  for (const id of selectedIds.value) {
+    const task = tasks.value.find((t: any) => t.id === id)
+    if (task) await completeTask({ ...task })
+  }
+  clearSelection()
+  showToast('Task dipindah ke Backlog')
+}
+
 // ── Filter pipeline ───────────────────────────────────────────────────────
 const filteredTasks = computed(() => {
   let result = tasks.value
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter((t: any) => (t.text || '').replace(/<[^>]*>/g, '').toLowerCase().includes(q))
+  }
+  if (activeCat.value !== 'all') {
+    result = result.filter((t: any) => t.cat === activeCat.value)
+  }
+  if (dateFilter.value) {
+    result = result.filter((t: any) => t.date === dateFilter.value)
+  }
+  return result
+})
+
+const filteredDoneTasks = computed(() => {
+  let result = doneTasks.value
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter((t: any) => (t.text || '').replace(/<[^>]*>/g, '').toLowerCase().includes(q))
@@ -242,7 +404,14 @@ const sortValue = (task: any, field: string): any => {
 }
 
 const sortedTasks = computed(() => {
-  if (!sortField.value || !sortDir.value) return filteredTasks.value
+  // When no column sort, apply drag order
+  if (!sortField.value || !sortDir.value) {
+    const order = taskOrder.value
+    if (order.length === 0) return filteredTasks.value
+    const sorted = order.map(id => filteredTasks.value.find((t: any) => t.id === id)).filter(Boolean) as any[]
+    const rest = filteredTasks.value.filter((t: any) => !order.includes(t.id))
+    return [...sorted, ...rest]
+  }
   const dir = sortDir.value === 'asc' ? 1 : -1
   const field = sortField.value
   return [...filteredTasks.value].sort((a: any, b: any) => {
@@ -340,25 +509,47 @@ const handleQuickAdd = async (text: string) => {
   }
 }
 
-// ── Toggle (mark as done → backlog) ──────────────────────────────────────
-const handleToggle = async (id: string, done: boolean) => {
-  if (!done) return
-  const task = tasks.value.find((t: any) => t.id === id)
-  if (!task) return
-  const taskData = { ...task }
-  const backup = [...tasks.value]
-  tasks.value = tasks.value.filter((t: any) => t.id !== id)
+// ── Toggle done (stays in todo, not archived) ─────────────────────────────
+const handleToggle = async (id: string) => {
   saving.value = true
-  savingText.value = 'Menyelesaikan task...'
+  savingText.value = 'Menyelesaikan...'
   try {
     cancel(`task-deadline-${id}`)
-    await completeTask(taskData)
-    showToast('Task selesai! Masuk Backlog.')
+    await markTaskDone(id)
   } catch (e) {
-    tasks.value = backup
     showToast('Gagal menyelesaikan task')
   } finally {
     saving.value = false
+  }
+}
+
+const handleUncheckDone = async (id: string) => {
+  try {
+    await markTaskUndone(id)
+  } catch (e) {
+    showToast('Gagal membatalkan selesai')
+  }
+}
+
+const handleArchiveDone = async (task: any) => {
+  saving.value = true
+  savingText.value = 'Mengarsipkan...'
+  try {
+    await archiveAndRemoveDone(task)
+    showToast('Task diarsipkan ke Backlog')
+  } catch (e) {
+    showToast('Gagal mengarsipkan task')
+  } finally {
+    saving.value = false
+  }
+}
+
+const handleDeleteDone = async (id: string) => {
+  try {
+    await purgeDoneTask(id)
+    showToast('Task dihapus')
+  } catch (e) {
+    showToast('Gagal menghapus task')
   }
 }
 
@@ -498,7 +689,7 @@ watch(user, async (newUser) => {
     await Promise.all([fetchCategories(), fetchFields()])
     injectAllStyles()
     await rolloverTasks()
-    await fetchAllPending()
+    await Promise.all([fetchAllPending(), fetchDoneTasks()])
   }
 }, { immediate: true })
 </script>
@@ -506,4 +697,6 @@ watch(user, async (newUser) => {
 <style scoped>
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+.slide-up-enter-active, .slide-up-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateX(-50%) translateY(8px); }
 </style>
