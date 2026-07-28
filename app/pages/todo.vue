@@ -108,6 +108,18 @@
       <NuxtLink to="/settings" class="text-xs text-vault-accent font-medium hover:underline">Ke Settings</NuxtLink>
     </div>
 
+    <!-- Evergreen (pinned) tasks -->
+    <EvergreenSection
+      :tasks="evergreenTasks"
+      :archived-tasks="archivedEvergreenTasks"
+      @toggle-done="handleEvergreenToggleDone"
+      @edit="openTask"
+      @archive="handleEvergreenArchive"
+      @unarchive="handleEvergreenUnarchive"
+      @convert="handleEvergreenConvert"
+      @load-archived="fetchArchivedEvergreenTasks"
+    />
+
     <SkeletonLoader v-if="neverLoaded && loading" type="task" :count="4" />
 
     <template v-else>
@@ -214,7 +226,7 @@
     <TaskModal
       v-if="showTaskModal"
       :task="editingTask"
-      :initial-date="dateFilter || todayStr"
+      :initial-date="todayStr"
       :initial-cat="activeCat !== 'all' ? activeCat : undefined"
       :task-fields="taskFields"
       @close="showTaskModal = false; editingTask = null"
@@ -331,7 +343,13 @@
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
-const { tasks, doneTasks, loading, neverLoaded, fetchAllPending, fetchTasksForRange, fetchDoneTasks, rolloverTasks, createTask, updateTask, completeTask, markTaskDone, markTaskUndone, archiveAndRemoveDone, purgeDoneTask, deleteTask } = useTasks()
+const {
+  tasks, doneTasks, evergreenTasks, archivedEvergreenTasks, loading, neverLoaded,
+  fetchAllPending, fetchTasksForRange, fetchDoneTasks, fetchEvergreenTasks, fetchArchivedEvergreenTasks,
+  rolloverTasks, createTask, createEvergreenTask, updateTask, completeTask, markTaskDone, markTaskUndone,
+  toggleEvergreenDone, archiveEvergreenTask, unarchiveEvergreenTask, convertEvergreenToTask,
+  archiveAndRemoveDone, purgeDoneTask, deleteTask,
+} = useTasks()
 const { createNote, updateNote } = useNotes()
 const { uploadImages, deleteImage } = useNoteImages()
 const { show: showToast } = useToast()
@@ -595,10 +613,46 @@ const handleQuickAdd = async (text: string) => {
     await createTask({
       text,
       cat: activeCat.value !== 'all' ? activeCat.value : null,
-      date: dateFilter.value || todayStr,
+      date: todayStr,
     })
   } catch (e) {
     showToast('Gagal menambah task')
+  }
+}
+
+// ── Evergreen (pinned) tasks ────────────────────────────────────────────
+const handleEvergreenToggleDone = async (id: string) => {
+  try {
+    await toggleEvergreenDone(id)
+  } catch (e) {
+    showToast('Gagal mengubah status task')
+  }
+}
+
+const handleEvergreenArchive = async (task: any) => {
+  try {
+    await archiveEvergreenTask(task.id)
+    showToast('Task diarsipkan')
+  } catch (e) {
+    showToast('Gagal mengarsipkan task')
+  }
+}
+
+const handleEvergreenUnarchive = async (task: any) => {
+  try {
+    await unarchiveEvergreenTask(task.id)
+    showToast('Task diaktifkan lagi')
+  } catch (e) {
+    showToast('Gagal mengaktifkan task')
+  }
+}
+
+const handleEvergreenConvert = async (task: any) => {
+  try {
+    await convertEvergreenToTask(task.id, todayStr)
+    showToast('Task dijadikan task biasa')
+  } catch (e) {
+    showToast('Gagal mengubah task')
   }
 }
 
@@ -681,7 +735,7 @@ const handleCellUpdate = async (taskId: string, updates: Record<string, any>) =>
 }
 
 // ── Save (edit or create) ────────────────────────────────────────────────
-const handleTaskSave = async (data: { text: string; cat: string; date: string; pendingFiles: File[]; existingImages: string[]; removedImages: string[]; deadlineAt?: string | null; customFields?: Record<string, any> }) => {
+const handleTaskSave = async (data: { text: string; cat: string; date: string; isEvergreen?: boolean; pendingFiles: File[]; existingImages: string[]; removedImages: string[]; deadlineAt?: string | null; customFields?: Record<string, any> }) => {
   saving.value = true
   showTaskModal.value = false
 
@@ -725,7 +779,9 @@ const handleTaskSave = async (data: { text: string; cat: string; date: string; p
     // ── Create new task ──
     savingText.value = 'Menambah task...'
     try {
-      const task = await createTask({ text: data.text, cat: data.cat || null, date: data.date, custom_fields: data.customFields })
+      const task = data.isEvergreen
+        ? await createEvergreenTask({ text: data.text, cat: data.cat || null, custom_fields: data.customFields })
+        : await createTask({ text: data.text, cat: data.cat || null, date: data.date, custom_fields: data.customFields })
       if (task && data.pendingFiles.length) {
         savingText.value = 'Mengupload foto...'
         const urls = await uploadImages(task.id, data.pendingFiles)
@@ -782,7 +838,7 @@ watch(user, async (newUser) => {
     await Promise.all([fetchCategories(), fetchFields()])
     injectAllStyles()
     await rolloverTasks()
-    await Promise.all([fetchAllPending(), fetchDoneTasks()])
+    await Promise.all([fetchAllPending(), fetchDoneTasks(), fetchEvergreenTasks()])
   }
 }, { immediate: true })
 </script>

@@ -64,6 +64,20 @@
           </button>
         </div>
 
+        <!-- Task type (evergreen vs one-time) — only choosable when creating -->
+        <div v-if="!task" class="flex gap-2">
+          <button
+            @click="isEvergreen = false"
+            class="flex-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+            :class="!isEvergreen ? 'bg-vault-accent/20 border-vault-accent/40 text-vault-accent' : 'bg-vault-bg border-vault-border text-vault-muted hover:text-vault-text'"
+          >Task biasa</button>
+          <button
+            @click="isEvergreen = true"
+            class="flex-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors inline-flex items-center justify-center gap-1"
+            :class="isEvergreen ? 'bg-vault-accent/20 border-vault-accent/40 text-vault-accent' : 'bg-vault-bg border-vault-border text-vault-muted hover:text-vault-text'"
+          >📌 Evergreen</button>
+        </div>
+
         <!-- Rich text editor -->
         <TiptapEditor v-model="rawText" placeholder="Isi task..." />
 
@@ -83,7 +97,7 @@
         </div>
 
         <!-- Date section -->
-        <div>
+        <div v-if="!isEvergreen">
           <label class="block text-xs text-vault-muted mb-2">Tanggal</label>
           <div class="flex flex-wrap gap-2 mb-2">
             <button
@@ -223,6 +237,7 @@ const tomorrowStr = tomorrow.toISOString().split('T')[0]
 const rawText = ref(props.task?.text || props.initialText || '')
 const selectedCat = ref(props.task?.cat || props.initialCat || categoryNames.value[0] || '')
 const selectedDate = ref(props.task?.date || props.initialDate || todayStr)
+const isEvergreen = ref(!!props.task?.is_evergreen)
 
 const toLocalInput = (iso: string | null | undefined): string => {
   if (!iso) return ''
@@ -275,6 +290,7 @@ const save = () => {
     text: rawText.value,
     cat: selectedCat.value,
     date: selectedDate.value,
+    isEvergreen: isEvergreen.value,
     pendingFiles: pendingFiles.value,
     existingImages: existingImages.value,
     removedImages: removedImages.value,

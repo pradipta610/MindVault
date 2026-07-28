@@ -46,6 +46,9 @@ export interface Database {
           rolled_from: string | null
           done: boolean
           done_at: string | null
+          is_evergreen: boolean
+          last_done_date: string | null
+          archived_at: string | null
           created_at: string
         }
         Insert: {
@@ -57,6 +60,9 @@ export interface Database {
           rolled_from?: string | null
           done?: boolean
           done_at?: string | null
+          is_evergreen?: boolean
+          last_done_date?: string | null
+          archived_at?: string | null
           created_at?: string
         }
         Update: {
@@ -68,6 +74,9 @@ export interface Database {
           rolled_from?: string | null
           done?: boolean
           done_at?: string | null
+          is_evergreen?: boolean
+          last_done_date?: string | null
+          archived_at?: string | null
           created_at?: string
         }
       }
