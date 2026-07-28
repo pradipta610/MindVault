@@ -64,10 +64,10 @@
           </button>
         </div>
 
-        <!-- Task type (evergreen vs one-time) — only choosable when creating -->
-        <div v-if="!task" class="flex gap-2">
+        <!-- Task type (evergreen vs one-time) — editable on create & edit -->
+        <div class="flex gap-2">
           <button
-            @click="isEvergreen = false"
+            @click="setOneTime"
             class="flex-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
             :class="!isEvergreen ? 'bg-vault-accent/20 border-vault-accent/40 text-vault-accent' : 'bg-vault-bg border-vault-border text-vault-muted hover:text-vault-text'"
           >Task biasa</button>
@@ -77,6 +77,9 @@
             :class="isEvergreen ? 'bg-vault-accent/20 border-vault-accent/40 text-vault-accent' : 'bg-vault-bg border-vault-border text-vault-muted hover:text-vault-text'"
           >📌 Evergreen</button>
         </div>
+        <p v-if="task && isEvergreen !== !!task.is_evergreen" class="text-[11px] text-vault-accent -mt-2">
+          {{ isEvergreen ? 'Task akan dijadikan evergreen (pinned) saat disimpan.' : 'Task akan dijadikan task biasa saat disimpan.' }}
+        </p>
 
         <!-- Rich text editor -->
         <TiptapEditor v-model="rawText" placeholder="Isi task..." />
@@ -238,6 +241,10 @@ const rawText = ref(props.task?.text || props.initialText || '')
 const selectedCat = ref(props.task?.cat || props.initialCat || categoryNames.value[0] || '')
 const selectedDate = ref(props.task?.date || props.initialDate || todayStr)
 const isEvergreen = ref(!!props.task?.is_evergreen)
+const setOneTime = () => {
+  if (isEvergreen.value) selectedDate.value = todayStr
+  isEvergreen.value = false
+}
 
 const toLocalInput = (iso: string | null | undefined): string => {
   if (!iso) return ''

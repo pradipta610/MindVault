@@ -255,6 +255,29 @@ export const useTasks = () => {
     if (task) _evergreenTasks.value.push({ ...task, ...(data || {}) })
   }
 
+  // Convert a normal task into an evergreen (pinned) task
+  const convertTaskToEvergreen = async (id: string) => {
+    const task = _tasks.value.find((t: any) => t.id === id) || _doneTasks.value.find((t: any) => t.id === id)
+    if (!task) return null
+    const wasDone = !!task.done
+    const { data, error } = await client
+      .from('tasks')
+      .update({
+        is_evergreen: true,
+        archived_at: null,
+        last_done_date: wasDone ? todayStr() : null,
+        done: false,
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    _tasks.value = _tasks.value.filter((t: any) => t.id !== id)
+    _doneTasks.value = _doneTasks.value.filter((t: any) => t.id !== id)
+    if (data) _evergreenTasks.value.push(data)
+    return data
+  }
+
   // Convert an evergreen task into a normal one-time task
   const convertEvergreenToTask = async (id: string, date: string) => {
     const task = _evergreenTasks.value.find((t: any) => t.id === id)
@@ -292,8 +315,10 @@ export const useTasks = () => {
       console.error('Failed to update task:', error)
       throw new Error('Failed to update task')
     }
-    const idx = _tasks.value.findIndex((t: any) => t.id === id)
-    if (idx !== -1) _tasks.value[idx] = { ..._tasks.value[idx], ...data }
+    for (const list of [_tasks, _doneTasks, _evergreenTasks, _archivedEvergreenTasks]) {
+      const idx = list.value.findIndex((t: any) => t.id === id)
+      if (idx !== -1) { list.value[idx] = { ...list.value[idx], ...data }; break }
+    }
     return data
   }
 
@@ -425,6 +450,7 @@ export const useTasks = () => {
     archiveEvergreenTask,
     unarchiveEvergreenTask,
     convertEvergreenToTask,
+    convertTaskToEvergreen,
     archiveAndRemoveDone,
     purgeDoneTask,
     invalidate,

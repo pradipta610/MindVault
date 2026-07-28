@@ -347,7 +347,7 @@ const {
   tasks, doneTasks, evergreenTasks, archivedEvergreenTasks, loading, neverLoaded,
   fetchAllPending, fetchTasksForRange, fetchDoneTasks, fetchEvergreenTasks, fetchArchivedEvergreenTasks,
   rolloverTasks, createTask, createEvergreenTask, updateTask, completeTask, markTaskDone, markTaskUndone,
-  toggleEvergreenDone, archiveEvergreenTask, unarchiveEvergreenTask, convertEvergreenToTask,
+  toggleEvergreenDone, archiveEvergreenTask, unarchiveEvergreenTask, convertEvergreenToTask, convertTaskToEvergreen,
   archiveAndRemoveDone, purgeDoneTask, deleteTask,
 } = useTasks()
 const { createNote, updateNote } = useNotes()
@@ -743,6 +743,7 @@ const handleTaskSave = async (data: { text: string; cat: string; date: string; i
     // ── Edit existing task ──
     savingText.value = 'Menyimpan task...'
     const taskId = editingTask.value.id
+    const wasEvergreen = !!editingTask.value.is_evergreen
     const oldDeadline = editingTask.value.deadline_at || null
     try {
       if (data.removedImages.length) {
@@ -754,13 +755,21 @@ const handleTaskSave = async (data: { text: string; cat: string; date: string; i
         newUrls = await uploadImages(taskId, data.pendingFiles)
       }
       const finalImages = [...data.existingImages, ...newUrls]
+
+      // Apply evergreen <-> one-time conversion first (moves task between local lists)
+      if (wasEvergreen && !data.isEvergreen) {
+        await convertEvergreenToTask(taskId, data.date)
+      } else if (!wasEvergreen && data.isEvergreen) {
+        await convertTaskToEvergreen(taskId)
+      }
+
       const updates: Record<string, any> = {
         text: data.text,
         cat: data.cat || null,
-        date: data.date,
         deadline_at: data.deadlineAt ?? null,
         custom_fields: data.customFields || {},
       }
+      if (!data.isEvergreen) updates.date = data.date
       if (finalImages.length > 0) updates.images = finalImages
       await updateTask(taskId, updates)
 
