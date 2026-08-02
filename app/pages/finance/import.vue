@@ -125,6 +125,7 @@ definePageMeta({ layout: 'default' })
 const user = useSupabaseUser()
 const { show: showToast } = useToast()
 const { accounts, fetchAccounts, createAccount } = useFinanceBankAccounts()
+const { fetchScopes, loaded: scopesLoaded } = useFinanceScopes()
 const {
   parsing, importing, error, previewItems,
   uploadAndParse, commitImport, setItemCategory, setItemAction, toggleItemSelected,
@@ -196,6 +197,14 @@ const doImport = async () => {
 }
 
 watch(user, async (u) => {
-  if (u) await fetchAccounts()
+  if (u) {
+    // Imported transactions are written with the currently active scope
+    // (see useFinance.createTransactionsBulk). If scopes were never loaded
+    // — e.g. the user lands here directly instead of via /finance first —
+    // that scope_id would be null and the rows would be invisible on both
+    // the "Pribadi" and "Keluarga" tabs after import.
+    if (!scopesLoaded.value) await fetchScopes()
+    await fetchAccounts()
+  }
 }, { immediate: true })
 </script>
