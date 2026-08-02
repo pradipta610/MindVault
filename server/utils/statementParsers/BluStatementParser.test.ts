@@ -101,4 +101,21 @@ describe('BluStatementParser', () => {
     expect(t.amount).toBe(100)
     expect(t.direction).toBe('credit')
   })
+
+  // Regression: transactions.amount is a bigint column. blu prints interest
+  // with sen ("Bunga 170,77"); an unrounded fractional amount fails the
+  // entire bulk insert with "invalid input syntax for type bigint" — found
+  // via a live end-to-end test against a real July statement.
+  it('rounds fractional-sen amounts to whole Rupiah for the bigint amount column', () => {
+    const text = [
+      '01 Jul 2026',
+      '03:16 bluAccount',
+      'Bunga 170,77 22.208,81',
+    ].join('\n')
+    const { transactions: tx, skipped: sk } = BluStatementParser.parse(text)
+    expect(sk).toHaveLength(0)
+    expect(tx).toHaveLength(1)
+    expect(tx[0]!.amount).toBe(171)
+    expect(Number.isInteger(tx[0]!.amount)).toBe(true)
+  })
 })
