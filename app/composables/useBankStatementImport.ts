@@ -135,19 +135,26 @@ export const useBankStatementImport = () => {
         .single()
       if (batchError) throw batchError
 
-      const created = await createTransactionsBulk(toImport.map(i => ({
-        type: i.type,
-        amount: i.amount,
-        category: i.category,
-        note: i.rawDescription,
-        date: i.date,
-        source: 'import' as const,
-        accountId: currentAccountId.value!,
-        importBatchId: batch.id,
-        dedupeHash: i.dedupeHash,
-      })))
-
-      return created
+      try {
+        return await createTransactionsBulk(toImport.map(i => ({
+          type: i.type,
+          amount: i.amount,
+          category: i.category,
+          note: i.rawDescription,
+          date: i.date,
+          source: 'import' as const,
+          accountId: currentAccountId.value!,
+          importBatchId: batch.id,
+          dedupeHash: i.dedupeHash,
+        })))
+      } catch (e) {
+        // Bulk insert is all-or-nothing (e.g. a dedupe_hash collision fails
+        // the whole batch). Without this, the batch row above would survive
+        // and permanently block retrying this exact file via
+        // alreadyImportedBatch(), even though nothing was actually imported.
+        await client.from('finance_import_batches').delete().eq('id', batch.id)
+        throw e
+      }
     } finally {
       importing.value = false
     }

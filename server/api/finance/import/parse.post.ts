@@ -49,8 +49,21 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Two genuinely different transactions can have identical
+  // date+amount+type+description (e.g. two same-day BI-FAST transfer fees
+  // to the same recipient, no reference number) — track how many times
+  // each combination has been seen so far in this statement and fold that
+  // into the hash, otherwise the bulk insert fails outright on the unique
+  // dedupe_hash constraint. Order is deterministic (parser output order),
+  // so re-parsing the same file reproduces the same hashes.
+  const occurrenceByKey = new Map<string, number>()
+
   const transactions = parsed.transactions.map((t, i) => {
     const type = t.suggestedType
+    const occurrenceKey = `${t.date}|${t.amount}|${type}|${t.rawDescription}|${t.reference || ''}`
+    const occurrence = (occurrenceByKey.get(occurrenceKey) || 0) + 1
+    occurrenceByKey.set(occurrenceKey, occurrence)
+
     return {
       tempId: `${i}`,
       date: t.date,
@@ -68,6 +81,7 @@ export default defineEventHandler(async (event) => {
         type,
         description: t.rawDescription,
         referenceNumber: t.reference,
+        occurrence,
       }),
       duplicateStatus: 'none' as const,
       action: 'import' as const,
