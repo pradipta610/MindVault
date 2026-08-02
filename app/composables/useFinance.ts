@@ -65,6 +65,33 @@ export const useFinance = () => {
     return data
   }
 
+  // Bulk insert used by the bank statement importer. Goes through the
+  // same table/RLS as manual entries — the only difference is payload
+  // size and the extra import-tracking fields.
+  const createTransactionsBulk = async (payloads: Array<{
+    type: string; amount: number; category: string; note: string; date: string
+    source: 'import'; accountId: string; importBatchId: string; dedupeHash: string
+  }>) => {
+    const userId = await getUserId()
+    if (!userId || payloads.length === 0) return []
+    const rows = payloads.map(p => ({
+      type: p.type,
+      amount: p.amount,
+      category: p.category,
+      note: p.note,
+      date: p.date,
+      user_id: userId,
+      scope_id: currentScopeId.value,
+      source: p.source,
+      account_id: p.accountId,
+      import_batch_id: p.importBatchId,
+      dedupe_hash: p.dedupeHash,
+    }))
+    const { data, error } = await client.from('transactions').insert(rows).select()
+    if (error) { console.error('Failed to bulk create transactions:', error); throw error }
+    return data || []
+  }
+
   const updateTransaction = async (id: string, payload: Partial<{
     type: string; amount: number; category: string; note: string; date: string
   }>) => {
@@ -101,6 +128,7 @@ export const useFinance = () => {
     fetchMonthData,
     fetchYearTransactions,
     createTransaction,
+    createTransactionsBulk,
     updateTransaction,
     deleteTransaction,
   }

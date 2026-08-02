@@ -380,29 +380,8 @@ const setTab = async (tab: 'monthly' | 'yearly') => {
 }
 
 // ── Categories ─────────────────────────────────────────────────────────────
-const EXPENSE_CATS = [
-  { key: 'makan', label: 'Makan', emoji: '🍔', color: '#f59e0b' },
-  { key: 'transport', label: 'Transport', emoji: '🚗', color: '#3b82f6' },
-  { key: 'belanja', label: 'Belanja', emoji: '🛍️', color: '#8b5cf6' },
-  { key: 'tagihan', label: 'Tagihan', emoji: '💡', color: '#f43f5e' },
-  { key: 'hiburan', label: 'Hiburan', emoji: '🎮', color: '#10b981' },
-  { key: 'kesehatan', label: 'Kesehatan', emoji: '💊', color: '#06b6d4' },
-  { key: 'pendidikan', label: 'Pendidikan', emoji: '📚', color: '#6366f1' },
-  { key: 'lainnya', label: 'Lainnya', emoji: '📦', color: '#6b7280' },
-]
-const INCOME_CATS = [
-  { key: 'gaji', label: 'Gaji', emoji: '💰', color: '#10b981' },
-  { key: 'freelance', label: 'Freelance', emoji: '💻', color: '#6366f1' },
-  { key: 'bisnis', label: 'Bisnis', emoji: '🏢', color: '#f59e0b' },
-  { key: 'investasi', label: 'Investasi', emoji: '📈', color: '#3b82f6' },
-  { key: 'hadiah', label: 'Hadiah', emoji: '🎁', color: '#ec4899' },
-  { key: 'lainnya', label: 'Lainnya', emoji: '💵', color: '#6b7280' },
-]
-const ALL_CATS = [...EXPENSE_CATS, ...INCOME_CATS]
-const getCatMeta = (key: string, type: string) =>
-  (type === 'income' ? INCOME_CATS : EXPENSE_CATS).find(c => c.key === key)
-  ?? ALL_CATS.find(c => c.key === key)
-  ?? { key, label: key, emoji: '💸', color: '#6b7280' }
+const { getCategoryMeta } = useFinanceCategories()
+const getCatMeta = getCategoryMeta
 const getCatLabel = (key: string, type: string) => getCatMeta(key, type).label
 
 const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']

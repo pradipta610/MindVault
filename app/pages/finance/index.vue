@@ -4,12 +4,20 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-3 sm:mb-4">
       <h1 class="font-serif text-2xl sm:text-3xl text-vault-text">Keuangan</h1>
-      <NuxtLink
-        to="/finance/analytics"
-        class="text-xs text-vault-muted hover:text-vault-accent border border-vault-border hover:border-vault-accent/40 px-3 py-1.5 rounded-lg transition-colors"
-      >
-        Analisa
-      </NuxtLink>
+      <div class="flex items-center gap-2">
+        <NuxtLink
+          to="/finance/import"
+          class="text-xs text-vault-muted hover:text-vault-accent border border-vault-border hover:border-vault-accent/40 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          Import
+        </NuxtLink>
+        <NuxtLink
+          to="/finance/analytics"
+          class="text-xs text-vault-muted hover:text-vault-accent border border-vault-border hover:border-vault-accent/40 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          Analisa
+        </NuxtLink>
+      </div>
     </div>
 
     <!-- Scope switcher -->
@@ -375,29 +383,8 @@ const filterOptions = [
 ]
 
 // ── Categories ──────────────────────────────────────────────────────────────
-const expenseCategories = [
-  { key: 'makan', label: 'Makan', emoji: '🍔', color: '#f59e0b' },
-  { key: 'transport', label: 'Transport', emoji: '🚗', color: '#3b82f6' },
-  { key: 'belanja', label: 'Belanja', emoji: '🛍️', color: '#8b5cf6' },
-  { key: 'tagihan', label: 'Tagihan', emoji: '💡', color: '#f43f5e' },
-  { key: 'hiburan', label: 'Hiburan', emoji: '🎮', color: '#10b981' },
-  { key: 'kesehatan', label: 'Kesehatan', emoji: '💊', color: '#06b6d4' },
-  { key: 'pendidikan', label: 'Pendidikan', emoji: '📚', color: '#6366f1' },
-  { key: 'lainnya', label: 'Lainnya', emoji: '📦', color: '#6b7280' },
-]
-const incomeCategories = [
-  { key: 'gaji', label: 'Gaji', emoji: '💰', color: '#10b981' },
-  { key: 'freelance', label: 'Freelance', emoji: '💻', color: '#6366f1' },
-  { key: 'bisnis', label: 'Bisnis', emoji: '🏢', color: '#f59e0b' },
-  { key: 'investasi', label: 'Investasi', emoji: '📈', color: '#3b82f6' },
-  { key: 'hadiah', label: 'Hadiah', emoji: '🎁', color: '#ec4899' },
-  { key: 'lainnya', label: 'Lainnya', emoji: '💵', color: '#6b7280' },
-]
-const allCategories = [...expenseCategories, ...incomeCategories]
-const getCatMeta = (key: string, type: string) =>
-  (type === 'income' ? incomeCategories : expenseCategories).find(c => c.key === key)
-  ?? allCategories.find(c => c.key === key)
-  ?? { key, label: key, emoji: '💸', color: '#6b7280' }
+const { expenseCategories, incomeCategories, getCategoryMeta } = useFinanceCategories()
+const getCatMeta = getCategoryMeta
 const getCatEmoji = (key: string, type: string) => getCatMeta(key, type).emoji
 const getCatLabel = (key: string, type: string) => getCatMeta(key, type).label
 const getCatColor = (key: string, type: string) => getCatMeta(key, type).color

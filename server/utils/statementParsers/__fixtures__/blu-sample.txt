@@ -1,0 +1,80 @@
+Nama / Name
+Budi Santoso Testono
+Rekening / Account
+bluAccount
+Periode / Period
+July 2026
+Mata Uang / Currency
+IDR (Rp)
+Total Pemasukan / Total Income
+Total Pengeluaran / Total Expense
+Saldo Awal / Initial Balance
+Saldo Akhir / Ending Balance
+500.000,00
+919.100,00
+1.100.600,00
+581.500,00
+Rp
+Rp
+Rp
+Rp
+bluAccount
+Halaman 1 dari 1 / Page 1 of 1
+Keterangan /
+Remarks
+Detail Transaksi | Ref / Transaction Details | Ref
+Nominal Sisa SaldoTanggal & Jam
+Date & Time Amount Remaining Balance
+bluAccount - 0000 0000 0000
+01 Jul 2026
+09:00 Test Warung 123456 | abc123ref456
+Pembayaran QRIS - 25.000,00 475.000,00
+02 Jul 2026
+10:15 BCA - -
+Dana Masuk dari BUDI SANTOSO TESTONO 1.000.000,00 1.475.000,00
+02 Jul 2026
+10:20 BCA | 1783154786884234
+Transfer ke TEST RECIPIENT NAME - 200.000,00 1.275.000,00
+03 Jul 2026
+11:00 bluSaving Dana Darurat
+Transfer Dana ke bluSaving - 300.000,00 975.000,00
+04 Jul 2026
+12:00 bluSaving Dana Darurat
+Dana Masuk dari bluSaving 100.000,00 1.075.000,00
+05 Jul 2026
+14:11 bluVirtual Card - •••• •••• •••• 1234 | 070831095988
+Transaksi Debit di TEST MERCHANT SUB - 50.000,00 1.025.000,00
+06 Jul 2026
+15:00 BANK RAKYAT INDONESIA (BRI) | 111222333
+Transfer ke TEST RECIPIENT TWO - 100.000,00 925.000,00
+06 Jul 2026
+15:00 BANK RAKYAT INDONESIA (BRI) | 111222333
+Biaya Transfer ke TEST RECIPIENT TWO - 6.500,00 918.500,00
+07 Jul 2026
+06:06 Nota Kredit
+Rp500 – bluDay Reward 500,00 919.000,00
+08 Jul 2026
+03:16 bluAccount
+Bunga 100,00 919.100,00
+09 Jul 2026
+16:00 Some Unknown Channel
+Detail with no amount at all
+BCA Digital berizin dan diawasi oleh Otoritas Jasa Keuangan & Bank Indonesia • BCA Digital merupakan peserta penjaminan LPS
+BCA Digital is licensed & supervised by Financial Services Authority (OJK) & Bank Indonesia •
+BCA Digital is a member of Indonesia Deposit Insurance Corporation (Lembaga Penjamin Simpanan)
+blubybcadigital.id • haloblu 1500668
+Total Pemasukan / Total Income
+Total Pengeluaran / Total Expense
+Saldo Awal / Initial Balance
+919.100,00
+500.000,00
+Saldo Akhir / Ending Balance
+-581.500,00
+1.100.600,00
+Disclaimer
+1. Test disclaimer line one.
+2. Test disclaimer line two.
+BCA Digital berizin dan diawasi oleh Otoritas Jasa Keuangan & Bank Indonesia • BCA Digital merupakan peserta penjaminan LPS
+BCA Digital is licensed & supervised by Financial Services Authority (OJK) & Bank Indonesia •
+BCA Digital is a member of Indonesia Deposit Insurance Corporation (Lembaga Penjamin Simpanan)
+blubybcadigital.id • haloblu 1500668

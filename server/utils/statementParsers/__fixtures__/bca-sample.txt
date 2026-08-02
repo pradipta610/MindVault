@@ -1,0 +1,90 @@
+REKENING TAHAPAN XPRESI
+K C P T E S T
+BUDI SANTOSO TESTONO
+JAKARTA
+RT000 RW000 DKI
+JL. TEST NO 1
+JAKARTA 12345
+INDONESIA
+NO. REKENING : 1234567890
+HALAMAN :
+PERIODE : JULI 2026
+MATA UANG : IDR
+C A T A T A N :
+A p a b i l a n a s a b a h t i d a k m e l a k u k a n s a n g g a h a n a t a s L a p o r a n M u t a s i
+R e k e n i n g i n i s a m p a i d e n g a n a k h i r b u l a n b e r i k u t n y a , n a s a b a h d i a n g g a p
+t e l a h m e n y e t u j u i s e g a l a d a t a y a n g t e r c a n t u m p a d a L a p o r a n M u t a s i
+R e k e n i n g i n i .
+• B C A b e r h a k s e t i a p s a a t m e l a k u k a n k o r e k s i a p a b i l a a d a k e s a l a h a n p a d a
+L a p o r a n M u t a s i R e k e n i n g .
+•
+TANGGAL KETERANGAN CBG MUTASI SALDO
+1 /2
+01/07 SALDO AWAL 1,000,000.00
+01/07 TRSF E-BANKING CR 0107/PYBCA/WS12345 500,000.00 1,500,000.00
+01/07 TRSF E-BANKING DB 0107/FTSCY/WS54321
+75000.00
+BUDI SANTOSO TWO
+75,000.00 DB
+02/07 TARIKAN ATM 02/07 100,000.00 DB
+02/07 BIAYA ADM 0998 10,000.00 DB 1,315,000.00
+03/07 BI-FAST DB BIF TRANSFER KE
+002
+TEST RECIPIENT NAME
+MyBCA
+200,000.00 DB
+03/07 BI-FAST DB BIF BIAYA TXN KE
+002
+TEST RECIPIENT NAME
+MyBCA
+2,500.00 DB
+03/07 TRANSAKSI DEBIT TGL: 03/07
+QR 008
+00000.00Test Merchant
+25,000.00 DB
+04/07 BI-FAST CR BIF TRANSFER DR
+501
+TEST SENDER NAME
+150,000.00
+04/07 KR OTOMATIS NTRF@TESTREF12345X0Z
+999@BCA26072117562
+@
+@TEST
+30,000.00
+05/07 UNKNOWN TRANSACTION TYPE WITH NO AMOUNT
+Bersambung ke halaman berikut
+
+REKENING TAHAPAN XPRESI
+K C P T E S T
+BUDI SANTOSO TESTONO
+JAKARTA
+RT000 RW000 DKI
+JL. TEST NO 1
+JAKARTA 12345
+INDONESIA
+NO. REKENING : 1234567890
+HALAMAN :
+PERIODE : JULI 2026
+MATA UANG : IDR
+C A T A T A N :
+A p a b i l a n a s a b a h t i d a k m e l a k u k a n s a n g g a h a n a t a s L a p o r a n M u t a s i
+R e k e n i n g i n i s a m p a i d e n g a n a k h i r b u l a n b e r i k u t n y a , n a s a b a h d i a n g g a p
+t e l a h m e n y e t u j u i s e g a l a d a t a y a n g t e r c a n t u m p a d a L a p o r a n M u t a s i
+R e k e n i n g i n i .
+• B C A b e r h a k s e t i a p s a a t m e l a k u k a n k o r e k s i a p a b i l a a d a k e s a l a h a n p a d a
+L a p o r a n M u t a s i R e k e n i n g .
+•
+TANGGAL KETERANGAN CBG MUTASI SALDO
+2 /2
+04/07 TRSF E-BANKING DB
+TANGGAL :03/07
+1234/FTFVA/WS99999
+88888/TESTSHOP
+-
+-
+811111111
+40,000.00 DB 1,227,500.00
+SALDO AWAL : 1,000,000.00
+MUTASI CR : 680,000.00 3
+MUTASI DB : 452,500.00 7
+SALDO AKHIR : 1,227,500.00
