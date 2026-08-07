@@ -1,9 +1,11 @@
 import { sendTelegramMessage } from '../../../utils/telegram'
+import { parseFinanceText } from '../../../utils/parseFinanceText'
+import { supabaseAdmin } from '../../../utils/supabaseAdmin'
 
-// Phase 1 (see project chat history): just prove the Telegram -> MindVault
-// wire is alive. No transaction parsing, no AI, no DB writes yet — that's
-// Phase 2, built on top of this once the connection itself is confirmed
-// working end to end.
+// Phase 2: text messages become real transactions in `transactions`.
+// Photos (struk/QRIS) still just get acknowledged — OCR/AI is a later
+// phase, same reasoning as before: prove each step works before adding
+// the next one.
 //
 // Telegram calls this endpoint directly (no browser session), so it can't
 // use the RLS-backed client the rest of the app uses. Two independent
@@ -29,16 +31,57 @@ export default defineEventHandler(async (event) => {
     return { ok: true }
   }
 
-  const text = message?.text as string | undefined
+  const text = (message?.text as string | undefined)?.trim()
   const hasPhoto = Array.isArray(message?.photo) && message.photo.length > 0
 
-  console.log('[telegram-webhook] received', { hasText: !!text, hasPhoto })
+  if (hasPhoto) {
+    await sendTelegramMessage(chatId, '📸 Foto diterima. (Parsing struk/QRIS belum aktif.)')
+    return { ok: true }
+  }
 
+  if (!text || text.startsWith('/')) {
+    await sendTelegramMessage(chatId, 'Kirim catatan transaksi, contoh:\n"jajan 25000 kopi"\n"gaji 5000000"')
+    return { ok: true }
+  }
+
+  const parsed = parseFinanceText(text)
+  if (!parsed) {
+    await sendTelegramMessage(chatId, '⚠️ Nggak nemu nominal di pesan itu. Coba sertakan angka, misal "jajan 25000 kopi".')
+    return { ok: true }
+  }
+
+  const userId = process.env.TELEGRAM_MINDVAULT_USER_ID
+  if (!userId) {
+    console.error('[telegram-webhook] TELEGRAM_MINDVAULT_USER_ID missing')
+    await sendTelegramMessage(chatId, '⚠️ Bot belum dikonfigurasi lengkap di server.')
+    return { ok: true }
+  }
+
+  const date = new Date((message.date + 7 * 3600) * 1000).toISOString().split('T')[0]
+
+  const { error } = await supabaseAdmin()
+    .from('transactions')
+    .insert({
+      user_id: userId,
+      type: parsed.type,
+      amount: parsed.amount,
+      category: parsed.category,
+      note: text,
+      date,
+      source: 'telegram',
+    })
+
+  if (error) {
+    console.error('[telegram-webhook] insert failed:', error)
+    await sendTelegramMessage(chatId, '❌ Gagal nyimpen transaksi. Coba lagi atau cek MindVault langsung.')
+    return { ok: true }
+  }
+
+  const sign = parsed.type === 'income' ? '+' : '-'
+  const formattedAmount = parsed.amount.toLocaleString('id-ID')
   await sendTelegramMessage(
     chatId,
-    hasPhoto
-      ? '📸 Foto diterima. (Parsing struk/QRIS belum aktif — masih Phase 1.)'
-      : `✅ MindVault nerima: "${text ?? '(pesan tanpa teks)'}"`
+    `✅ Tercatat: ${sign}Rp${formattedAmount} — ${parsed.categoryEmoji} ${parsed.categoryLabel}`
   )
 
   return { ok: true }
