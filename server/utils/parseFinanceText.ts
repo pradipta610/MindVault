@@ -31,7 +31,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
 
 const INCOME_CATEGORIES = new Set(['gaji', 'freelance', 'bisnis', 'investasi', 'hadiah'])
 
-const CATEGORY_META: Record<string, { emoji: string, label: string }> = {
+export const CATEGORY_META: Record<string, { emoji: string, label: string }> = {
   makan: { emoji: '🍔', label: 'Makan' },
   transport: { emoji: '🚗', label: 'Transport' },
   belanja: { emoji: '🛍️', label: 'Belanja' },
