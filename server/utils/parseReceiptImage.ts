@@ -30,40 +30,39 @@ const extractJson = (text: string): any | null => {
   return null
 }
 
+// Google Gemini has a genuine free tier for this volume (personal receipt
+// scanning), unlike the Anthropic API — see project chat history for why
+// this isn't just calling Claude like server/api/ai-process.post.ts does.
 export const parseReceiptImage = async (base64: string, mediaType: string): Promise<ParsedReceipt | null> => {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
-    console.error('parseReceiptImage: ANTHROPIC_API_KEY missing')
+    console.error('parseReceiptImage: GEMINI_API_KEY missing')
     return null
   }
 
   let response: any
   try {
-    response = await $fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: {
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 512,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-            { type: 'text', text: PROMPT },
-          ],
-        }],
-      },
-    })
+    response = await $fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        body: {
+          contents: [{
+            parts: [
+              { text: PROMPT },
+              { inline_data: { mime_type: mediaType, data: base64 } },
+            ],
+          }],
+          generationConfig: { responseMimeType: 'application/json' },
+        },
+      }
+    )
   } catch (e) {
-    console.error('parseReceiptImage: Anthropic API call failed:', e)
+    console.error('parseReceiptImage: Gemini API call failed:', e)
     return null
   }
 
-  const text = response?.content?.[0]?.text
+  const text = response?.candidates?.[0]?.content?.parts?.[0]?.text
   const parsed = typeof text === 'string' ? extractJson(text) : null
   if (!parsed || typeof parsed.amount !== 'number' || parsed.amount <= 0) return null
 

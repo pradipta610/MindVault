@@ -80,8 +80,8 @@ export default defineEventHandler(async (event) => {
 
   const photos = message?.photo
   if (Array.isArray(photos) && photos.length > 0) {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.error('[telegram-webhook] ANTHROPIC_API_KEY missing')
+    if (!process.env.GEMINI_API_KEY) {
+      console.error('[telegram-webhook] GEMINI_API_KEY missing')
       await sendTelegramMessage(chatId, '⚠️ Pembacaan struk belum dikonfigurasi di server.')
       return { ok: true }
     }
