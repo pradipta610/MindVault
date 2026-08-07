@@ -1,6 +1,7 @@
 import { sendTelegramMessage } from '../../../utils/telegram'
 import { parseFinanceText } from '../../../utils/parseFinanceText'
 import { supabaseAdmin } from '../../../utils/supabaseAdmin'
+import { getDefaultScopeId } from '../../../utils/getDefaultScopeId'
 
 // Phase 2: text messages become real transactions in `transactions`.
 // Photos (struk/QRIS) still just get acknowledged — OCR/AI is a later
@@ -58,6 +59,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const date = new Date((message.date + 7 * 3600) * 1000).toISOString().split('T')[0]
+  const scopeId = await getDefaultScopeId(userId)
 
   const { error } = await supabaseAdmin()
     .from('transactions')
@@ -69,6 +71,7 @@ export default defineEventHandler(async (event) => {
       note: text,
       date,
       source: 'telegram',
+      scope_id: scopeId,
     })
 
   if (error) {
