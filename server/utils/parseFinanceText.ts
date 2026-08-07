@@ -50,7 +50,10 @@ const CATEGORY_META: Record<string, { emoji: string, label: string }> = {
 const INCOME_SIGNAL = /\b(gaji|terima|masuk|dapat|untung|profit|cashback|bonus)\b/i
 
 const parseAmount = (text: string): number | null => {
-  const m = text.match(/(\d+(?:[.,]\d+)?)\s*(ribu|rb|jt|juta|k)?/i)
+  // \b after the unit is required — without it "25000 kopi" matches "k"
+  // as the "ribu" suffix (from the start of "kopi") and multiplies by
+  // 1000 on top of the already-literal 25000.
+  const m = text.match(/(\d+(?:[.,]\d+)?)\s*(?:(ribu|rb|jt|juta|k)\b)?/i)
   if (!m) return null
 
   const suffix = m[2]?.toLowerCase()
