@@ -98,35 +98,6 @@ export const useTasks = () => {
     }
   }
 
-  const rolloverTasks = async () => {
-    const userId = await getUserId()
-    if (!userId) return
-    const today = new Date().toISOString().split('T')[0]
-    try {
-      const { data: overdue, error } = await client
-        .from('tasks')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('done', false)
-        .eq('is_evergreen', false)
-        .lt('date', today)
-      if (error) throw error
-      if (overdue && overdue.length > 0) {
-        for (const task of overdue) {
-          await client
-            .from('tasks')
-            .update({
-              date: today,
-              rolled_from: task.rolled_from || task.date,
-            })
-            .eq('id', task.id)
-        }
-      }
-    } catch (e) {
-      console.error('Failed to rollover tasks:', e)
-    }
-  }
-
   const createTask = async (task: { text: string; cat: string | null; date: string; images?: string[] | null; deadline_at?: string | null; custom_fields?: Record<string, any> }) => {
     const userId = await getUserId()
     if (!userId) return null
@@ -438,7 +409,6 @@ export const useTasks = () => {
     fetchDoneTasks,
     fetchEvergreenTasks,
     fetchArchivedEvergreenTasks,
-    rolloverTasks,
     createTask,
     createEvergreenTask,
     updateTask,

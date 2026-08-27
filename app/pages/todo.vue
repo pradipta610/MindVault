@@ -346,7 +346,7 @@ const user = useSupabaseUser()
 const {
   tasks, doneTasks, evergreenTasks, archivedEvergreenTasks, loading, neverLoaded,
   fetchAllPending, fetchTasksForRange, fetchDoneTasks, fetchEvergreenTasks, fetchArchivedEvergreenTasks,
-  rolloverTasks, createTask, createEvergreenTask, updateTask, completeTask, markTaskDone, markTaskUndone,
+  createTask, createEvergreenTask, updateTask, completeTask, markTaskDone, markTaskUndone,
   toggleEvergreenDone, archiveEvergreenTask, unarchiveEvergreenTask, convertEvergreenToTask, convertTaskToEvergreen,
   archiveAndRemoveDone, purgeDoneTask, deleteTask,
 } = useTasks()
@@ -846,7 +846,6 @@ watch(user, async (newUser) => {
   if (newUser) {
     await Promise.all([fetchCategories(), fetchFields()])
     injectAllStyles()
-    await rolloverTasks()
     await Promise.all([fetchAllPending(), fetchDoneTasks(), fetchEvergreenTasks()])
   }
 }, { immediate: true })
