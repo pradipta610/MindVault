@@ -15,16 +15,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
           </svg>
         </button>
-        <!-- Search toggle -->
-        <button
-          @click="showSearch = !showSearch"
-          class="w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
-          :class="showSearch ? 'bg-vault-accent/20 text-vault-accent' : 'text-vault-muted hover:text-vault-text hover:bg-vault-bg'"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-          </svg>
-        </button>
         <!-- Category filter -->
         <TodoFilterSheet
           v-if="hasCategories"
@@ -73,27 +63,6 @@
       </div>
     </div>
 
-    <!-- Search bar (collapsible) -->
-    <div v-if="showSearch" class="relative mb-3">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-vault-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-      </svg>
-      <input
-        v-model="searchQuery"
-        placeholder="Cari task..."
-        class="w-full bg-vault-card border border-vault-border rounded-xl pl-10 pr-8 py-2.5 text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
-      />
-      <button
-        v-if="searchQuery"
-        @click="searchQuery = ''"
-        class="absolute right-3 top-1/2 -translate-y-1/2 text-vault-muted hover:text-vault-text transition-colors"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
-
     <!-- Active date filter chip -->
     <div v-if="dateFilter" class="mb-3 flex items-center gap-2">
       <span class="text-xs bg-vault-accent/15 text-vault-accent px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1.5">
@@ -108,6 +77,18 @@
       <NuxtLink to="/settings" class="text-xs text-vault-accent font-medium hover:underline">Ke Settings</NuxtLink>
     </div>
 
+    <!-- Evergreen (pinned) tasks -->
+    <EvergreenSection
+      :tasks="evergreenTasks"
+      :archived-tasks="archivedEvergreenTasks"
+      @toggle-done="handleEvergreenToggleDone"
+      @edit="openTask"
+      @archive="handleEvergreenArchive"
+      @unarchive="handleEvergreenUnarchive"
+      @convert="handleEvergreenConvert"
+      @load-archived="fetchArchivedEvergreenTasks"
+    />
+
     <!-- Today's plan -->
     <TodayTodoSection
       :tasks="todayTasks"
@@ -120,17 +101,33 @@
       @open-picker="showTodayPicker = true"
     />
 
-    <!-- Evergreen (pinned) tasks -->
-    <EvergreenSection
-      :tasks="evergreenTasks"
-      :archived-tasks="archivedEvergreenTasks"
-      @toggle-done="handleEvergreenToggleDone"
-      @edit="openTask"
-      @archive="handleEvergreenArchive"
-      @unarchive="handleEvergreenUnarchive"
-      @convert="handleEvergreenConvert"
-      @load-archived="fetchArchivedEvergreenTasks"
-    />
+    <!-- All tasks: section label + search scoped to this list -->
+    <div class="flex items-center justify-between gap-3 mb-2">
+      <h3 class="text-sm font-semibold text-vault-text shrink-0">
+        Semua Task
+        <span class="text-vault-muted font-normal tabular-nums">({{ sortedTasks.length }})</span>
+      </h3>
+      <div class="relative flex-1 max-w-[280px]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-vault-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+        </svg>
+        <input
+          v-model="searchQuery"
+          placeholder="Cari task..."
+          class="w-full bg-vault-card border border-vault-border rounded-lg pl-9 pr-8 py-2 text-sm text-vault-text placeholder:text-vault-muted/50 focus:outline-none focus:border-vault-accent/30 transition-colors"
+        />
+        <button
+          v-if="searchQuery"
+          @click="searchQuery = ''"
+          title="Hapus pencarian"
+          class="absolute right-2 top-1/2 -translate-y-1/2 text-vault-muted hover:text-vault-text transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
 
     <SkeletonLoader v-if="neverLoaded && loading" type="task" :count="4" />
 
@@ -384,7 +381,6 @@ const todayStr = new Date().toISOString().split('T')[0]
 const { register: registerSync } = useBackgroundSync()
 registerSync(() => fetchAllPending())
 const searchQuery = ref('')
-const showSearch = ref(false)
 const saving = ref(false)
 const savingText = ref('Menyimpan...')
 const activeCat = ref('all')
