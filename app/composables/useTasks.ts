@@ -37,7 +37,7 @@ export const useTasks = () => {
     try {
       const { data, error } = await client
         .from('tasks')
-        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, custom_fields, created_at')
+        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, custom_fields, today_at, today_order, created_at')
         .eq('user_id', userId)
         .eq('date', date)
         .eq('done', false)
@@ -82,7 +82,7 @@ export const useTasks = () => {
     try {
       const { data, error } = await client
         .from('tasks')
-        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, custom_fields, created_at')
+        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, custom_fields, today_at, today_order, created_at')
         .eq('user_id', userId)
         .eq('done', false)
         .eq('is_evergreen', false)
@@ -98,7 +98,7 @@ export const useTasks = () => {
     }
   }
 
-  const createTask = async (task: { text: string; cat: string | null; date: string; images?: string[] | null; deadline_at?: string | null; custom_fields?: Record<string, any> }) => {
+  const createTask = async (task: { text: string; cat: string | null; date: string; images?: string[] | null; deadline_at?: string | null; custom_fields?: Record<string, any>; today_at?: string | null }) => {
     const userId = await getUserId()
     if (!userId) return null
     const insert: Record<string, any> = {
@@ -110,6 +110,10 @@ export const useTasks = () => {
     if (task.images && task.images.length > 0) insert.images = task.images
     if (task.deadline_at) insert.deadline_at = task.deadline_at
     if (task.custom_fields && Object.keys(task.custom_fields).length > 0) insert.custom_fields = task.custom_fields
+    if (task.today_at) {
+      insert.today_at = task.today_at
+      insert.today_order = nextTodayOrder()
+    }
     const { data, error } = await client
       .from('tasks')
       .insert(insert)
@@ -121,6 +125,37 @@ export const useTasks = () => {
     }
     if (data) _tasks.value.push(data)
     return data
+  }
+
+  // ── Today plan ─────────────────────────────────────────────────────────
+  // A task belongs to today's plan while today_at = current date, so an
+  // unfinished plan expires on its own at midnight instead of piling up.
+  const nextTodayOrder = () => {
+    const today = todayStr()
+    const orders = [..._tasks.value, ..._doneTasks.value]
+      .filter((t: any) => t.today_at === today)
+      .map((t: any) => t.today_order ?? 0)
+    return (orders.length ? Math.max(...orders) : 0) + 1
+  }
+
+  const addToToday = async (id: string) =>
+    updateTask(id, { today_at: todayStr(), today_order: nextTodayOrder() })
+
+  const removeFromToday = async (id: string) =>
+    updateTask(id, { today_at: null, today_order: null })
+
+  const reorderToday = async (ids: string[]) => {
+    ids.forEach((id, i) => {
+      for (const list of [_tasks, _doneTasks]) {
+        const idx = list.value.findIndex((t: any) => t.id === id)
+        if (idx !== -1) { list.value[idx] = { ...list.value[idx], today_order: i + 1 }; break }
+      }
+    })
+    const results = await Promise.all(
+      ids.map((id, i) => client.from('tasks').update({ today_order: i + 1 }).eq('id', id))
+    )
+    const failed = results.find((r: any) => r.error)
+    if (failed) throw failed.error
   }
 
   // ── Evergreen (pinned, recurring) tasks ────────────────────────────────
@@ -338,7 +373,7 @@ export const useTasks = () => {
     try {
       const { data, error } = await client
         .from('tasks')
-        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, custom_fields, created_at')
+        .select('id, user_id, text, cat, date, done, rolled_from, images, deadline_at, custom_fields, today_at, today_order, created_at')
         .eq('user_id', userId)
         .eq('done', true)
         .eq('is_evergreen', false)
@@ -423,6 +458,9 @@ export const useTasks = () => {
     convertTaskToEvergreen,
     archiveAndRemoveDone,
     purgeDoneTask,
+    addToToday,
+    removeFromToday,
+    reorderToday,
     invalidate,
   }
 }

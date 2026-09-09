@@ -108,6 +108,18 @@
       <NuxtLink to="/settings" class="text-xs text-vault-accent font-medium hover:underline">Ke Settings</NuxtLink>
     </div>
 
+    <!-- Today's plan -->
+    <TodayTodoSection
+      :tasks="todayTasks"
+      @toggle="handleTodayToggle"
+      @edit="openTask"
+      @remove="handleTodayRemove"
+      @reorder="handleTodayReorder"
+      @add="handleTodayAdd"
+      @quick-add="handleTodayQuickAdd"
+      @open-picker="showTodayPicker = true"
+    />
+
     <!-- Evergreen (pinned) tasks -->
     <EvergreenSection
       :tasks="evergreenTasks"
@@ -144,6 +156,7 @@
           @toggle-select="handleToggleSelect"
           @toggle-select-all="handleToggleSelectAll"
           @reorder="handleReorder"
+          @add-to-today="handleTodayAdd"
           @uncheck-done="handleUncheckDone"
           @archive-done="handleArchiveDone"
           @delete-done="handleDeleteDone"
@@ -167,6 +180,7 @@
             @toggle="handleToggle(task.id)"
             @delete="handleDeleteTask(task.id)"
             @to-note="handleToNote(task)"
+            @add-to-today="handleTodayAdd(task.id)"
             @select="handleToggleSelect(task.id)"
           />
 
@@ -220,6 +234,13 @@
       </div>
     </template>
   </div>
+
+  <TodayPickerSheet
+    v-if="showTodayPicker"
+    :tasks="todayPickerTasks"
+    @close="showTodayPicker = false"
+    @confirm="handleTodayPickerConfirm"
+  />
 
   <!-- Task edit/create modal -->
   <Teleport to="body">
@@ -349,6 +370,7 @@ const {
   createTask, createEvergreenTask, updateTask, completeTask, markTaskDone, markTaskUndone,
   toggleEvergreenDone, archiveEvergreenTask, unarchiveEvergreenTask, convertEvergreenToTask, convertTaskToEvergreen,
   archiveAndRemoveDone, purgeDoneTask, deleteTask,
+  addToToday, removeFromToday, reorderToday,
 } = useTasks()
 const { createNote, updateNote } = useNotes()
 const { uploadImages, deleteImage } = useNoteImages()
@@ -462,9 +484,84 @@ const handleBulkDelete = async () => {
   showToast('Task dipindah ke Backlog')
 }
 
+// ── Today's plan ──────────────────────────────────────────────────────────
+// Today's tasks live in the section above and are hidden from the list below,
+// so a task is only ever in one place.
+const showTodayPicker = ref(false)
+const inToday = (t: any) => t.today_at === todayStr
+
+const todayTasks = computed(() =>
+  [...tasks.value, ...doneTasks.value]
+    .filter(inToday)
+    .sort((a: any, b: any) => (a.today_order ?? 9999) - (b.today_order ?? 9999))
+)
+
+const todayPickerTasks = computed(() => tasks.value.filter((t: any) => !inToday(t)))
+
+const handleTodayAdd = async (taskId: string) => {
+  if (!tasks.value.some((t: any) => t.id === taskId)) return
+  try {
+    await addToToday(taskId)
+  } catch (e) {
+    showToast('Gagal menambah ke Hari Ini')
+  }
+}
+
+const handleTodayPickerConfirm = async (ids: string[]) => {
+  showTodayPicker.value = false
+  try {
+    for (const id of ids) await addToToday(id)
+    showToast(`${ids.length} task masuk Hari Ini`)
+  } catch (e) {
+    showToast('Gagal menambah task')
+  }
+}
+
+const handleTodayRemove = async (taskId: string) => {
+  try {
+    await removeFromToday(taskId)
+  } catch (e) {
+    showToast('Gagal mengeluarkan task')
+  }
+}
+
+const handleTodayReorder = async (ids: string[]) => {
+  try {
+    await reorderToday(ids)
+  } catch (e) {
+    showToast('Gagal menyimpan urutan')
+  }
+}
+
+const handleTodayToggle = async (task: any) => {
+  try {
+    if (task.done) {
+      await markTaskUndone(task.id)
+    } else {
+      cancel(`task-deadline-${task.id}`)
+      await markTaskDone(task.id)
+    }
+  } catch (e) {
+    showToast('Gagal mengubah status task')
+  }
+}
+
+const handleTodayQuickAdd = async (text: string) => {
+  try {
+    await createTask({
+      text,
+      cat: activeCat.value !== 'all' ? activeCat.value : null,
+      date: todayStr,
+      today_at: todayStr,
+    })
+  } catch (e) {
+    showToast('Gagal menambah task')
+  }
+}
+
 // ── Filter pipeline ───────────────────────────────────────────────────────
 const filteredTasks = computed(() => {
-  let result = tasks.value
+  let result = tasks.value.filter((t: any) => !inToday(t))
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter((t: any) => (t.text || '').replace(/<[^>]*>/g, '').toLowerCase().includes(q))
@@ -479,7 +576,7 @@ const filteredTasks = computed(() => {
 })
 
 const filteredDoneTasks = computed(() => {
-  let result = doneTasks.value
+  let result = doneTasks.value.filter((t: any) => !inToday(t))
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter((t: any) => (t.text || '').replace(/<[^>]*>/g, '').toLowerCase().includes(q))
