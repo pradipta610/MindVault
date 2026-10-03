@@ -77,6 +77,14 @@
       <NuxtLink to="/settings" class="text-xs text-vault-accent font-medium hover:underline">Ke Settings</NuxtLink>
     </div>
 
+    <!-- Urgent: pending tasks matching the user's urgency rules -->
+    <UrgentSection
+      :tasks="urgentCandidates"
+      @toggle-done="handleToggle"
+      @edit="openTask"
+      @add-to-today="handleTodayAdd"
+    />
+
     <!-- Evergreen (pinned) tasks -->
     <EvergreenSection
       :tasks="evergreenTasks"
@@ -144,6 +152,8 @@
           :empty-message="emptyMessage"
           :select-mode="selectMode"
           :selected-ids="selectedIds"
+          :default-cat="activeCat !== 'all' ? activeCat : null"
+          :default-date="todayStr"
           @sort="handleSort"
           @row-click="openTask"
           @toggle-done="handleToggle"
@@ -162,6 +172,13 @@
 
       <!-- ═══ Mobile (<768px): card list ═══ -->
       <div class="md:hidden">
+        <div class="bg-vault-card border border-vault-border rounded-xl px-4 py-2.5 mb-2">
+          <TaskQuickAdd
+            :default-cat="activeCat !== 'all' ? activeCat : null"
+            :default-date="todayStr"
+            @submit="handleQuickAdd"
+          />
+        </div>
         <div v-if="sortedTasks.length === 0 && filteredDoneTasks.length === 0" class="text-center py-12 pb-24">
           <p class="text-vault-muted text-sm">{{ emptyMessage }}</p>
         </div>
@@ -358,6 +375,8 @@
 </template>
 
 <script setup lang="ts">
+import type { QuickAddPayload } from '~/types/task-quick-add'
+
 definePageMeta({ layout: 'default' })
 
 const user = useSupabaseUser()
@@ -377,7 +396,7 @@ const { categoryNames, hasCategories, fetchCategories, injectAllStyles } = useCa
 const { fields: taskFields, fetchFields } = useTaskFields()
 
 const categories = categoryNames
-const todayStr = new Date().toISOString().split('T')[0]
+const todayStr = new Date().toISOString().slice(0, 10)
 const { register: registerSync } = useBackgroundSync()
 registerSync(() => fetchAllPending())
 const searchQuery = ref('')
@@ -491,6 +510,9 @@ const todayTasks = computed(() =>
     .filter(inToday)
     .sort((a: any, b: any) => (a.today_order ?? 9999) - (b.today_order ?? 9999))
 )
+
+// Tasks already planned for today are left out — they're handled up there.
+const urgentCandidates = computed(() => tasks.value.filter((t: any) => !inToday(t)))
 
 const todayPickerTasks = computed(() => tasks.value.filter((t: any) => !inToday(t)))
 
@@ -701,13 +723,12 @@ const openTask = (task: any) => {
 }
 
 // ── Quick-add (inline row in table) ───────────────────────────────────────
-const handleQuickAdd = async (text: string) => {
+const handleQuickAdd = async (payload: QuickAddPayload) => {
   try {
-    await createTask({
-      text,
-      cat: activeCat.value !== 'all' ? activeCat.value : null,
-      date: todayStr,
-    })
+    const task = await createTask(payload)
+    if (task && payload.deadline_at) {
+      await schedule(`task-deadline-${task.id}`, 'MindVault Deadline', plainText(payload.text).slice(0, 100) || 'Deadline task tiba', new Date(payload.deadline_at))
+    }
   } catch (e) {
     showToast('Gagal menambah task')
   }
