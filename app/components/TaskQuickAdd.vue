@@ -21,16 +21,10 @@
         </label>
 
         <!-- Date -->
-        <label :class="chipCls">
-          <span class="text-vault-muted">Tanggal</span>
-          <input v-model="date" type="date" class="bg-transparent text-xs text-vault-text focus:outline-none" />
-        </label>
+        <DatePicker v-model="date" :clearable="false" />
 
         <!-- Deadline -->
-        <label :class="chipCls">
-          <span class="text-vault-muted">Deadline</span>
-          <input v-model="deadline" type="datetime-local" class="bg-transparent text-xs text-vault-text focus:outline-none" />
-        </label>
+        <DatePicker v-model="deadline" with-time placeholder="Deadline" />
 
         <!-- Custom fields -->
         <template v-for="f in fields" :key="f.id">
@@ -41,10 +35,7 @@
               <option v-for="opt in f.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
             </select>
           </label>
-          <label v-else-if="f.type === 'date'" :class="chipCls">
-            <span class="text-vault-muted truncate max-w-[80px]">{{ f.label }}</span>
-            <input v-model="custom[f.key]" type="date" class="bg-transparent text-xs text-vault-text focus:outline-none" />
-          </label>
+          <DatePicker v-else-if="f.type === 'date'" v-model="custom[f.key]" :placeholder="f.label" />
           <button
             v-else-if="f.type === 'checkbox'"
             type="button"

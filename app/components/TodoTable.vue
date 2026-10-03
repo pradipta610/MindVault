@@ -171,21 +171,22 @@
 
             <!-- Date -->
             <div v-else-if="col.id === 'date'" class="px-2 py-2">
-              <input
-                type="date"
-                :value="task.date"
-                @change="commitBuiltin(task, 'date', ($event.target as HTMLInputElement).value)"
-                class="w-full bg-transparent text-xs text-vault-text rounded px-1.5 py-1 hover:bg-vault-bg focus:bg-vault-bg focus:outline-none transition-colors"
+              <DatePicker
+                variant="cell"
+                :model-value="task.date"
+                :clearable="false"
+                @update:model-value="commitBuiltin(task, 'date', $event)"
               />
             </div>
 
             <!-- Deadline -->
             <div v-else-if="col.id === 'deadline_at'" class="px-2 py-2">
-              <input
-                type="datetime-local"
-                :value="toLocalInput(task.deadline_at)"
-                @change="commitDeadline(task, ($event.target as HTMLInputElement).value)"
-                class="w-full bg-transparent text-xs text-vault-text rounded px-1.5 py-1 hover:bg-vault-bg focus:bg-vault-bg focus:outline-none transition-colors"
+              <DatePicker
+                variant="cell"
+                with-time
+                placeholder="—"
+                :model-value="toLocalInput(task.deadline_at)"
+                @update:model-value="commitDeadline(task, $event)"
               />
             </div>
 
@@ -201,12 +202,12 @@
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
                     class="w-full bg-transparent text-xs text-vault-text rounded px-1.5 py-1 hover:bg-vault-bg focus:bg-vault-bg focus:outline-none transition-colors"
                   />
-                  <input
+                  <DatePicker
                     v-else-if="f.type === 'date'"
-                    type="date"
-                    :value="task.custom_fields?.[f.key] ?? ''"
-                    @change="commitCustom(task, f, ($event.target as HTMLInputElement).value)"
-                    class="w-full bg-transparent text-xs text-vault-text rounded px-1.5 py-1 hover:bg-vault-bg focus:bg-vault-bg focus:outline-none transition-colors"
+                    variant="cell"
+                    placeholder="—"
+                    :model-value="task.custom_fields?.[f.key] ?? ''"
+                    @update:model-value="commitCustom(task, f, $event)"
                   />
                   <input
                     v-else-if="f.type === 'checkbox'"
